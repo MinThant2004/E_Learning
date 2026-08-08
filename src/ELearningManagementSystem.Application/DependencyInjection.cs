@@ -32,6 +32,9 @@ public static class DependencyInjection
         // Lesson Progress Services
         services.AddScoped<ELearningManagementSystem.Application.Features.LessonProgress.Services.ILessonProgressService, ELearningManagementSystem.Application.Features.LessonProgress.Services.LessonProgressService>();
 
+        // Quiz Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.Quizzes.Services.IQuizService, ELearningManagementSystem.Application.Features.Quizzes.Services.QuizService>();
+
         return services;
     }
 }

@@ -1,0 +1,947 @@
+@page "/admin/courses/{CourseId:int}/quizzes"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Quiz.Read")]
+@inject QuizApiClient QuizClient
+@inject CourseApiClient CourseClient
+@inject NavigationManager NavManager
+
+<PageTitle>Manage Quiz - @CourseTitle</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Navigation Back Link -->
+    <button @onclick="GoBackToCourses" class="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
+        <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+        </svg>
+        Back to Courses
+    </button>
+
+    <PageHeader Title="@($"Course Quiz: {CourseTitle}")" Description="Create, edit, and manage the final quiz for this course.">
+        <ActionTemplate>
+            <AuthorizeView Policy="Permission:Quiz.Create">
+                <Authorized>
+                    @if (ActiveQuiz == null && !IsLoading)
+                    {
+                        <button @onclick="ShowCreateQuizForm" type="button" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors w-full sm:w-auto">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create Final Quiz
+                        </button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </ActionTemplate>
+    </PageHeader>
+
+
+
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-red-700">@ErrorMessage</p>
+                </div>
+                <div class="ml-auto pl-3">
+                    <button @onclick="() => ErrorMessage = null" type="button" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (SuccessMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-emerald-50 p-4 border border-emerald-200 shadow-sm">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-emerald-700">@SuccessMessage</p>
+                </div>
+                <div class="ml-auto pl-3">
+                    <button @onclick="() => SuccessMessage = null" type="button" class="inline-flex rounded-md bg-emerald-50 p-1.5 text-emerald-500 hover:bg-emerald-100 focus:outline-none">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <SkeletonCard />
+    }
+    else if (IsQuizFormVisible)
+    {
+        <!-- Create/Edit Quiz Form -->
+        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-8 overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                <h3 class="text-lg leading-6 font-semibold text-slate-900">@(EditingQuizId.HasValue ? "Edit Quiz" : "Create Final Quiz")</h3>
+            </div>
+            <div class="px-6 py-6 sm:p-8">
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-4">
+                        <label for="quizTitle" class="block text-sm font-medium text-slate-700">Quiz Title <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <input type="text" id="quizTitle" @bind="QuizTitle" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Final Course Assessment" />
+                        </div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="passingScore" class="block text-sm font-medium text-slate-700">Passing Score (%) <span class="text-xs text-slate-500">(0–100)</span></label>
+                        <div class="mt-1">
+                            <input type="number" min="0" max="100" id="passingScore" @bind="QuizPassingScore" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
+                <button type="button" @onclick="CancelQuizForm" class="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="button" @onclick="SaveQuiz" disabled="@IsSaving" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-70 transition-colors">
+                    @if (IsSaving)
+                    {
+                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>@(EditingQuizId.HasValue ? "Update Quiz" : "Create Quiz")</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+    @if (ActiveQuiz != null)
+    {
+        <!-- Active Quiz View -->
+        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-12 overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="flex items-center space-x-3">
+                        <h3 class="text-xl font-bold text-slate-900">@ActiveQuiz.Title</h3>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                            Active Final Quiz
+                        </span>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-1">Passing Score: <span class="font-semibold text-indigo-600">@ActiveQuiz.PassingScore%</span> · @ActiveQuiz.Questions.Count question(s)</p>
+                </div>
+                <div class="mt-4 sm:mt-0 flex space-x-3">
+                    <AuthorizeView Policy="Permission:Quiz.Update">
+                        <Authorized>
+                            <button @onclick="EditQuiz" class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-xl shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                                Edit Settings
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Policy="Permission:Quiz.Delete">
+                        <Authorized>
+                            <button @onclick="() => { ConfirmQuizId = ActiveQuiz.QuizId; ShowArchiveConfirm = true; }" class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors">
+                                Archive Quiz
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Add Question Button -->
+                <AuthorizeView Policy="Permission:Quiz.Create">
+                    <Authorized>
+                        <div class="mb-6">
+                            <button @onclick="ShowAddQuestionForm" class="inline-flex items-center px-5 py-2.5 border border-dashed border-indigo-300 rounded-xl text-sm font-medium text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-400 transition-colors w-full justify-center">
+                                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                Add Question
+                            </button>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <!-- Add Question Form -->
+                @if (IsQuestionFormVisible)
+                {
+                    <div class="mb-6 bg-slate-50 rounded-2xl border border-slate-200 p-6">
+                        <h4 class="text-base font-semibold text-slate-900 mb-4">Add New Question</h4>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Question Text <span class="text-red-500">*</span></label>
+                                <textarea rows="3" @bind="QuestionText" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Enter the question..."></textarea>
+                            </div>
+
+                            @if (!EditingQuestionId.HasValue)
+                            {
+                                <!-- Options for new question -->
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Answer Options <span class="text-xs text-slate-500">(at least 2 required, mark correct answer)</span></label>
+                                    @for (int i = 0; i < NewQuestionOptions.Count; i++)
+                                    {
+                                        var idx = i;
+                                        <div class="flex items-center space-x-3 mb-2">
+                                            <input type="text" @bind="NewQuestionOptions[idx].OptionText" class="flex-1 rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-3 py-2" placeholder="@($"Option {idx + 1}")" />
+                                            <label class="flex items-center space-x-1.5 text-sm cursor-pointer">
+                                                <input type="checkbox" checked="@NewQuestionOptions[idx].IsCorrect" @onchange="(e) => NewQuestionOptions[idx].IsCorrect = (bool)(e.Value ?? false)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4" />
+                                                <span class="text-slate-600">Correct</span>
+                                            </label>
+                                            @if (NewQuestionOptions.Count > 2)
+                                            {
+                                                <button @onclick="() => NewQuestionOptions.RemoveAt(idx)" class="text-red-400 hover:text-red-600 transition-colors">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                    <button @onclick="AddOptionRow" class="mt-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">+ Add another option</button>
+                                </div>
+                            }
+                        </div>
+                        <div class="mt-5 flex justify-end space-x-3">
+                            <button @onclick="CancelQuestionForm" class="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                            <button @onclick="SaveQuestion" disabled="@IsSaving" class="inline-flex justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-70 transition-colors">
+                                @(IsSaving ? "Saving..." : (EditingQuestionId.HasValue ? "Update Question" : "Add Question"))
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Questions List -->
+                @if (ActiveQuiz.Questions.Count == 0)
+                {
+                    <div class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <h3 class="mt-3 text-sm font-semibold text-slate-900">No questions yet</h3>
+                        <p class="mt-1 text-sm text-slate-500">Add questions to build this quiz.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-4">
+                        @for (int qi = 0; qi < ActiveQuiz.Questions.Count; qi++)
+                        {
+                            var question = ActiveQuiz.Questions[qi];
+                            var qIndex = qi;
+                            <div class="bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 transition-colors overflow-hidden">
+                                <div class="flex items-start justify-between p-5">
+                                    <div class="flex items-start space-x-3 flex-1 min-w-0">
+                                        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex-shrink-0 mt-0.5">
+                                            @(qIndex + 1)
+                                        </div>
+                                        @if (EditingQuestionId == question.QuestionId)
+                                        {
+                                            <div class="flex-1 pr-4">
+                                                <textarea rows="2" @bind="QuestionText" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-3 py-2 transition-colors mb-2"></textarea>
+                                                <div class="flex space-x-2">
+                                                    <button @onclick="SaveQuestion" disabled="@IsSaving" class="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">Save</button>
+                                                    <button @onclick="CancelQuestionForm" class="px-3 py-1.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-sm font-medium text-slate-900 break-words">@question.QuestionText</p>
+                                        }
+                                    </div>
+                                    @if (EditingQuestionId != question.QuestionId)
+                                    {
+                                        <div class="flex items-center space-x-1 ml-3 flex-shrink-0">
+                                            <AuthorizeView Policy="Permission:Quiz.Update">
+                                                <Authorized>
+                                                    <button @onclick="() => StartEditQuestion(question)" class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit question">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                            <AuthorizeView Policy="Permission:Quiz.Delete">
+                                                <Authorized>
+                                                    <button @onclick="() => { ConfirmDeleteQuestionId = question.QuestionId; ShowDeleteQuestionConfirm = true; }" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete question">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                        </div>
+                                    }
+                                </div>
+                                <!-- Options -->
+                                <div class="px-5 pb-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach (var opt in question.Options)
+                                        {
+                                            @if (EditingOptionId == opt.OptionId)
+                                            {
+                                                <div class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm bg-slate-50 border border-indigo-200 w-full sm:col-span-2">
+                                                    <input type="text" @bind="EditingOptionText" class="flex-1 rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs border px-2 py-1" />
+                                                    <label class="flex items-center space-x-1 text-xs cursor-pointer flex-shrink-0">
+                                                        <input type="checkbox" @bind="EditingOptionIsCorrect" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" />
+                                                        <span class="text-slate-600">Correct</span>
+                                                    </label>
+                                                    <button @onclick="() => SaveEditedOption(opt.OptionId, question.QuestionId)" disabled="@IsSaving" class="px-2.5 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all flex-shrink-0">Save</button>
+                                                    <button @onclick="() => EditingOptionId = null" class="px-2.5 py-1 border border-slate-300 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-all flex-shrink-0">Cancel</button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="@($"flex items-center justify-between px-3 py-2 rounded-lg text-sm {(opt.IsCorrect ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-slate-50 border border-slate-100 text-slate-700")}")">
+                                                    <div class="flex items-center space-x-2 min-w-0">
+                                                        @if (opt.IsCorrect)
+                                                        {
+                                                            <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                                        }
+                                                        else
+                                                        {
+                                                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        }
+                                                        <span class="break-words">@opt.OptionText</span>
+                                                    </div>
+                                                    <div class="flex items-center space-x-1 ml-2 flex-shrink-0">
+                                                        <AuthorizeView Policy="Permission:Quiz.Update">
+                                                            <Authorized>
+                                                                <button @onclick="() => StartEditOption(opt)" class="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all" title="Edit Option">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                </button>
+                                                                <button @onclick="() => StartDeleteOption(opt.OptionId)" class="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50/50 transition-all" title="Delete Option">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                </button>
+                                                            </Authorized>
+                                                        </AuthorizeView>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                    <!-- Add Option Inline -->
+                                    <AuthorizeView Policy="Permission:Quiz.Create">
+                                        <Authorized>
+                                            @if (AddingOptionForQuestionId == question.QuestionId)
+                                            {
+                                                <div class="mt-3 flex items-center space-x-2">
+                                                    <input type="text" @bind="NewOptionText" class="flex-1 rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border px-3 py-2" placeholder="Option text..." />
+                                                    <label class="flex items-center space-x-1 text-sm cursor-pointer">
+                                                        <input type="checkbox" @bind="NewOptionIsCorrect" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4" />
+                                                        <span class="text-slate-600">Correct</span>
+                                                    </label>
+                                                    <button @onclick="() => SaveNewOption(question.QuestionId)" disabled="@IsSaving" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">Add</button>
+                                                    <button @onclick="() => AddingOptionForQuestionId = null" class="px-3 py-1.5 border border-slate-300 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <button @onclick="() => { AddingOptionForQuestionId = question.QuestionId; NewOptionText = string.Empty; NewOptionIsCorrect = false; }" class="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">+ Add option</button>
+                                            }
+                                        </Authorized>
+                                    </AuthorizeView>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- No Quiz State -->
+        <EmptyState Title="No Quiz Created" Description="This course doesn't have a final quiz yet. Create one to allow students to test their knowledge.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </Icon>
+            <ActionTemplate>
+                <AuthorizeView Policy="Permission:Quiz.Create">
+                    <Authorized>
+                        <button @onclick="ShowCreateQuizForm" class="mt-5 inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                            Create Final Quiz
+                        </button>
+                    </Authorized>
+                </AuthorizeView>
+            </ActionTemplate>
+        </EmptyState>
+    }
+
+    <!-- Archived Quizzes List -->
+    @if (ArchivedQuizzes != null && ArchivedQuizzes.Any(q => q.DeleteFlag))
+    {
+        <div class="mt-16 pt-8 border-t border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-700 mb-4">Quiz History / Archived</h3>
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach (var archivedQuiz in ArchivedQuizzes.Where(q => q.DeleteFlag))
+                {
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between hover:shadow-sm transition-shadow">
+                        <div class="mb-3">
+                            <h4 class="text-sm font-semibold text-slate-800 line-clamp-1">@archivedQuiz.Title</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">@archivedQuiz.QuestionCount questions</p>
+                        </div>
+                        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                            <AuthorizeView Policy="Permission:Quiz.Update">
+                                <Authorized>
+                                    <button @onclick="() => StartRestoreQuiz(archivedQuiz.QuizId)" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+                                        Restore
+                                    </button>
+                                </Authorized>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Confirmation Modals -->
+<ConfirmationModal IsVisible="ShowArchiveConfirm" Title="Archive Quiz" Message="Are you sure you want to archive this quiz? It will no longer be visible to students." ConfirmText="Archive" IsDestructive="true" OnConfirm="ConfirmArchiveQuiz" OnCancel="() => ShowArchiveConfirm = false" />
+<ConfirmationModal IsVisible="ShowRestoreConfirm" Title="Restore Quiz" Message="Are you sure you want to restore this quiz? It will become the active quiz for this course." ConfirmText="Restore" IsDestructive="false" OnConfirm="ConfirmRestoreQuiz" OnCancel="() => ShowRestoreConfirm = false" />
+<ConfirmationModal IsVisible="ShowActiveQuizExistsWarning" Title="Active quiz already exists" Message="This course already has an active quiz. Archive the current quiz before restoring this one." ConfirmText="Got it" IsDestructive="false" ShowCancel="false" OnConfirm="() => ShowActiveQuizExistsWarning = false" />
+<ConfirmationModal IsVisible="ShowDeleteQuestionConfirm" Title="Delete Question" Message="Are you sure you want to permanently delete this question and all its options? This cannot be undone." ConfirmText="Delete" IsDestructive="true" OnConfirm="ConfirmDeleteQuestion" OnCancel="() => ShowDeleteQuestionConfirm = false" />
+<ConfirmationModal IsVisible="ShowDeleteOptionConfirm" Title="Delete Option" Message="Are you sure you want to permanently delete this option? This cannot be undone." ConfirmText="Delete" IsDestructive="true" OnConfirm="ConfirmDeleteOption" OnCancel="() => ShowDeleteOptionConfirm = false" />
+
+@code {
+    [Parameter]
+    public int CourseId { get; set; }
+
+    private string CourseTitle = "Loading...";
+
+    // Quiz state
+    private QuizDetailClientResponse? ActiveQuiz;
+    private List<QuizSummaryResponse>? ArchivedQuizzes;
+
+    // UI state
+    private bool IsLoading = true;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    // Quiz form state
+    private bool IsQuizFormVisible = false;
+    private int? EditingQuizId;
+    private string QuizTitle = string.Empty;
+    private int QuizPassingScore = 70;
+
+    // Question form state
+    private bool IsQuestionFormVisible = false;
+    private int? EditingQuestionId;
+    private string QuestionText = string.Empty;
+    private List<CreateOptionClientRequest> NewQuestionOptions = new();
+
+    // Inline option add state
+    private int? AddingOptionForQuestionId;
+    private string NewOptionText = string.Empty;
+    private bool NewOptionIsCorrect = false;
+
+    // Inline option edit state
+    private int? EditingOptionId;
+    private string EditingOptionText = string.Empty;
+    private bool EditingOptionIsCorrect = false;
+
+    // Confirmation modal state
+    private bool ShowArchiveConfirm = false;
+    private bool ShowRestoreConfirm = false;
+    private bool ShowActiveQuizExistsWarning = false;
+    private bool ShowDeleteQuestionConfirm = false;
+    private bool ShowDeleteOptionConfirm = false;
+    private int ConfirmQuizId;
+    private int ConfirmDeleteQuestionId;
+    private int ConfirmDeleteOptionId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            // Load course name
+            var course = await CourseClient.GetCourseAsync(CourseId);
+            if (course != null) CourseTitle = course.Title;
+
+            // Load ALL quizzes for this course
+            var allQuizzes = await QuizClient.GetQuizzesByCourseAsync(CourseId, null);
+
+            ActiveQuiz = null;
+            ArchivedQuizzes = new();
+
+            if (allQuizzes != null)
+            {
+                // Active Quiz is the one with DeleteFlag = false
+                var activeItem = allQuizzes.FirstOrDefault(q => !q.DeleteFlag);
+                if (activeItem != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(activeItem.QuizId);
+                }
+                
+                // Store all quizzes in ArchivedQuizzes (we will filter inside razor)
+                ArchivedQuizzes = allQuizzes;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load quiz data. " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    // ─── Quiz Form ───────────────────────────────────────────────
+
+    private void ShowCreateQuizForm()
+    {
+        EditingQuizId = null;
+        QuizTitle = string.Empty;
+        QuizPassingScore = 70;
+        IsQuizFormVisible = true;
+    }
+
+    private void EditQuiz()
+    {
+        if (ActiveQuiz == null) return;
+        EditingQuizId = ActiveQuiz.QuizId;
+        QuizTitle = ActiveQuiz.Title;
+        QuizPassingScore = ActiveQuiz.PassingScore;
+        IsQuizFormVisible = true;
+    }
+
+    private void CancelQuizForm()
+    {
+        IsQuizFormVisible = false;
+        EditingQuizId = null;
+    }
+
+    private async Task SaveQuiz()
+    {
+        if (string.IsNullOrWhiteSpace(QuizTitle))
+        {
+            ErrorMessage = "Quiz title is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (EditingQuizId.HasValue)
+            {
+                response = await QuizClient.UpdateQuizAsync(EditingQuizId.Value, new UpdateQuizClientRequest
+                {
+                    Title = QuizTitle,
+                    PassingScore = QuizPassingScore
+                });
+            }
+            else
+            {
+                response = await QuizClient.CreateQuizAsync(CourseId, new CreateQuizClientRequest
+                {
+                    CourseId = CourseId,
+                    Title = QuizTitle,
+                    PassingScore = QuizPassingScore
+                });
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = EditingQuizId.HasValue ? "Quiz updated successfully." : "Quiz created successfully.";
+                IsQuizFormVisible = false;
+                EditingQuizId = null;
+                await LoadData();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to save quiz.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    // ─── Archive / Restore Quiz ──────────────────────────────────
+
+    private async Task ConfirmArchiveQuiz()
+    {
+        ShowArchiveConfirm = false;
+        IsSaving = true;
+        try
+        {
+            var response = await QuizClient.ArchiveQuizAsync(ConfirmQuizId);
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Quiz archived successfully.";
+                await LoadData();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to archive quiz.";
+            }
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; }
+    }
+
+    private void StartRestoreQuiz(int quizId)
+    {
+        if (ActiveQuiz != null && !ActiveQuiz.DeleteFlag)
+        {
+            ShowActiveQuizExistsWarning = true;
+        }
+        else
+        {
+            ConfirmQuizId = quizId;
+            ShowRestoreConfirm = true;
+        }
+    }
+
+    private async Task ConfirmRestoreQuiz()
+    {
+        ShowRestoreConfirm = false;
+        IsSaving = true;
+        try
+        {
+            var response = await QuizClient.RestoreQuizAsync(ConfirmQuizId);
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Quiz restored successfully.";
+                await LoadData();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to restore quiz.";
+            }
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; }
+    }
+
+    private async Task ViewArchivedQuiz(int quizId)
+    {
+        IsLoading = true;
+        try
+        {
+            ActiveQuiz = await QuizClient.GetQuizAsync(quizId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load quiz. " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    // ─── Question Form ───────────────────────────────────────────
+
+    private void ShowAddQuestionForm()
+    {
+        EditingQuestionId = null;
+        QuestionText = string.Empty;
+        NewQuestionOptions = new()
+        {
+            new() { OptionText = string.Empty, IsCorrect = true },
+            new() { OptionText = string.Empty, IsCorrect = false }
+        };
+        IsQuestionFormVisible = true;
+    }
+
+    private void StartEditQuestion(QuestionClientResponse question)
+    {
+        EditingQuestionId = question.QuestionId;
+        QuestionText = question.QuestionText;
+        IsQuestionFormVisible = false;
+    }
+
+    private void CancelQuestionForm()
+    {
+        IsQuestionFormVisible = false;
+        EditingQuestionId = null;
+    }
+
+    private void AddOptionRow()
+    {
+        NewQuestionOptions.Add(new() { OptionText = string.Empty, IsCorrect = false });
+    }
+
+    private async Task SaveQuestion()
+    {
+        if (string.IsNullOrWhiteSpace(QuestionText))
+        {
+            ErrorMessage = "Question text is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (EditingQuestionId.HasValue)
+            {
+                response = await QuizClient.UpdateQuestionAsync(EditingQuestionId.Value, new UpdateQuestionClientRequest
+                {
+                    QuestionText = QuestionText,
+                    DisplayOrder = 0
+                });
+            }
+            else
+            {
+                if (ActiveQuiz == null) return;
+
+                // Validate options
+                var validOptions = NewQuestionOptions.Where(o => !string.IsNullOrWhiteSpace(o.OptionText)).ToList();
+                if (validOptions.Count < 2)
+                {
+                    ErrorMessage = "At least 2 options are required.";
+                    IsSaving = false;
+                    return;
+                }
+                if (!validOptions.Any(o => o.IsCorrect))
+                {
+                    ErrorMessage = "At least one option must be marked as correct.";
+                    IsSaving = false;
+                    return;
+                }
+
+                response = await QuizClient.CreateQuestionAsync(ActiveQuiz.QuizId, new CreateQuestionClientRequest
+                {
+                    QuizId = ActiveQuiz.QuizId,
+                    QuestionText = QuestionText,
+                    DisplayOrder = 0,
+                    Options = validOptions
+                });
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = EditingQuestionId.HasValue ? "Question updated." : "Question added.";
+                IsQuestionFormVisible = false;
+                EditingQuestionId = null;
+                // Reload quiz detail
+                if (ActiveQuiz != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(ActiveQuiz.QuizId);
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to save question.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task ConfirmDeleteQuestion()
+    {
+        ShowDeleteQuestionConfirm = false;
+        IsSaving = true;
+        try
+        {
+            var response = await QuizClient.DeleteQuestionAsync(ConfirmDeleteQuestionId);
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Question deleted.";
+                if (ActiveQuiz != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(ActiveQuiz.QuizId);
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to delete question.";
+            }
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; }
+    }
+
+    // ─── Inline Option Add ───────────────────────────────────────
+
+    private async Task SaveNewOption(int questionId)
+    {
+        if (string.IsNullOrWhiteSpace(NewOptionText))
+        {
+            ErrorMessage = "Option text is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var response = await QuizClient.CreateOptionAsync(questionId, new CreateOptionClientRequest
+            {
+                OptionText = NewOptionText,
+                IsCorrect = NewOptionIsCorrect
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Option added.";
+                AddingOptionForQuestionId = null;
+                if (ActiveQuiz != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(ActiveQuiz.QuizId);
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorContent?.Error ?? "Failed to add option.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    // ─── Inline Option Edit/Delete ───────────────────────────────
+
+    private void StartEditOption(QuestionOptionClientResponse option)
+    {
+        EditingOptionId = option.OptionId;
+        EditingOptionText = option.OptionText;
+        EditingOptionIsCorrect = option.IsCorrect;
+        // Close adding state if open
+        AddingOptionForQuestionId = null;
+    }
+
+    private async Task SaveEditedOption(int optionId, int questionId)
+    {
+        if (string.IsNullOrWhiteSpace(EditingOptionText))
+        {
+            ErrorMessage = "Option text is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var response = await QuizClient.UpdateOptionAsync(optionId, new UpdateOptionClientRequest
+            {
+                QuestionId = questionId,
+                OptionText = EditingOptionText,
+                IsCorrect = EditingOptionIsCorrect
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Option updated.";
+                EditingOptionId = null;
+                if (ActiveQuiz != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(ActiveQuiz.QuizId);
+                }
+            }
+            else
+            {
+                var errorBody = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorBody?.Error ?? "Failed to update option.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void StartDeleteOption(int optionId)
+    {
+        ConfirmDeleteOptionId = optionId;
+        ShowDeleteOptionConfirm = true;
+    }
+
+    private async Task ConfirmDeleteOption()
+    {
+        ShowDeleteOptionConfirm = false;
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var response = await QuizClient.DeleteOptionAsync(ConfirmDeleteOptionId);
+            if (response.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Option deleted.";
+                if (ActiveQuiz != null)
+                {
+                    ActiveQuiz = await QuizClient.GetQuizAsync(ActiveQuiz.QuizId);
+                }
+            }
+            else
+            {
+                var errorBody = await response.Content.ReadFromJsonAsync<ErrorBody>();
+                ErrorMessage = errorBody?.Error ?? "Failed to delete option.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    // ─── Navigation ──────────────────────────────────────────────
+
+    private void GoBackToCourses()
+    {
+        NavManager.NavigateTo("/admin/courses");
+    }
+
+    // ─── Helper ──────────────────────────────────────────────────
+    private class ErrorBody
+    {
+        public string? Error { get; set; }
+    }
+}
