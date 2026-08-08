@@ -31,6 +31,7 @@ builder.Services.AddScoped<EnrollmentApiClient>();
 builder.Services.AddScoped<LessonProgressApiClient>();
 builder.Services.AddScoped<QuizApiClient>();
 builder.Services.AddScoped<QuizAttemptApiClient>();
+builder.Services.AddScoped<StudentDashboardApiClient>();
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5001";
 

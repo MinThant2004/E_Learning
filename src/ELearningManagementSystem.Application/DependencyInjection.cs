@@ -38,6 +38,9 @@ public static class DependencyInjection
         // Quiz Attempt Services
         services.AddScoped<ELearningManagementSystem.Application.Features.QuizAttempts.Services.IQuizAttemptService, ELearningManagementSystem.Application.Features.QuizAttempts.Services.QuizAttemptService>();
 
+        // Student Dashboard Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.StudentDashboard.Services.IStudentDashboardService, ELearningManagementSystem.Application.Features.StudentDashboard.Services.StudentDashboardService>();
+
         return services;
     }
 }
