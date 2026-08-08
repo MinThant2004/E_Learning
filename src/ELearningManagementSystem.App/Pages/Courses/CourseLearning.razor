@@ -4,6 +4,7 @@
 @using ELearningManagementSystem.App.Components.UI
 @inject LessonApiClient LessonClient
 @inject CourseApiClient CourseClient
+@inject LessonProgressApiClient LessonProgressClient
 @inject NavigationManager NavManager
 
 <PageTitle>@ActiveLesson?.Title - @CourseTitle</PageTitle>
@@ -22,6 +23,18 @@
                 <span class="text-slate-300">|</span>
                 <span class="text-sm font-semibold text-slate-700 truncate max-w-xs sm:max-w-md">@CourseTitle</span>
             </div>
+            
+            @if (CourseProgress != null)
+            {
+                <div class="hidden sm:flex items-center space-x-4">
+                    <div class="text-sm font-medium text-slate-600">
+                        @CourseProgress.CompletedCount / @CourseProgress.TotalActiveLessons completed
+                    </div>
+                    <div class="w-32 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: @(CourseProgress.Percentage)%"></div>
+                    </div>
+                </div>
+            }
         </div>
     </header>
 
@@ -37,14 +50,27 @@
                 }
                 else
                 {
-                    @foreach (var lesson in Lessons)
+                    @for (int i = 0; i < Lessons.Count; i++)
                     {
+                        var lesson = Lessons[i];
                         var isCurrent = lesson.LessonId == LessonId;
+                        var isCompleted = CourseProgress?.Lessons.Any(p => p.LessonId == lesson.LessonId && p.Completed) == true;
+
                         <button @onclick="() => NavigateToLesson(lesson.LessonId)" 
                                 class="@($"w-full text-left flex items-start space-x-3 px-3 py-3 rounded-xl transition-all border { (isCurrent ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" : "bg-white border-transparent text-slate-700 hover:bg-slate-50 hover:text-slate-900") }")">
-                            <span class="@($"flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold { (isCurrent ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-700") }")">
-                                @lesson.DisplayOrder
-                            </span>
+                            
+                            @if (isCompleted)
+                            {
+                                <span class="@($"flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold { (isCurrent ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-600") }")">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="@($"flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold { (isCurrent ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-700") }")">
+                                    @(i + 1)
+                                </span>
+                            }
                             <span class="text-xs font-semibold leading-5">@lesson.Title</span>
                         </button>
                     }
@@ -115,7 +141,33 @@
                             </button>
                         }
                     </div>
-                    <div>
+                    <div class="flex items-center space-x-3">
+                        @if (CompletionStatusMessage != null)
+                        {
+                            <div class="@($"px-4 py-2 rounded-lg text-sm font-medium mr-2 {(CompletionStatusIsError ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600")}")">
+                                @CompletionStatusMessage
+                            </div>
+                        }
+
+                        @if (CourseProgress?.Lessons.Any(p => p.LessonId == LessonId && p.Completed) == false)
+                        {
+                            <button @onclick="MarkAsComplete" disabled="@IsCompleting"
+                                    class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-slate-200 rounded-full shadow-sm text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all disabled:opacity-50">
+                                @if (IsCompleting)
+                                {
+                                    <span class="animate-spin inline-block h-4 w-4 border-b-2 border-indigo-600 rounded-full mr-2"></span>
+                                    <span>Completing...</span>
+                                }
+                                else
+                                {
+                                    <svg class="mr-2 h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Mark as Complete</span>
+                                }
+                            </button>
+                        }
+
                         @if (NextLessonId.HasValue)
                         {
                             <button @onclick="() => NavigateToLesson(NextLessonId.Value)" 
@@ -153,15 +205,20 @@
     private string CourseTitle = "Loading course...";
     private List<LessonSummaryResponse> Lessons = new();
     private LessonDetailResponse? ActiveLesson;
+    private CourseProgressResponse? CourseProgress;
 
     private bool IsLoading = true;
+    private bool IsCompleting = false;
     private string? ErrorMessage;
+    private string? CompletionStatusMessage;
+    private bool CompletionStatusIsError = false;
 
     private int? PrevLessonId;
     private int? NextLessonId;
 
     protected override async Task OnParametersSetAsync()
     {
+        CompletionStatusMessage = null;
         await LoadCourseName();
         await LoadLessonsAndActive();
     }
@@ -189,15 +246,42 @@
         try
         {
             // Load list of lessons
-            var listResult = await LessonClient.GetLessonsAsync(CourseId, pageSize: 1000);
+            var listResult = await LessonClient.GetLessonsAsync(CourseId, pageSize: 1000, isArchived: false);
             if (listResult != null)
             {
                 Lessons = listResult.Items.OrderBy(l => l.DisplayOrder).ToList();
             }
 
-            // Load active lesson details
-            ActiveLesson = await LessonClient.GetLessonAsync(CourseId, LessonId);
+            // Fallback check: if requested lesson is not active, redirect to first active lesson
+            if (!Lessons.Any(l => l.LessonId == LessonId))
+            {
+                if (Lessons.Any())
+                {
+                    NavigateToLesson(Lessons.First().LessonId);
+                    return; // Stop loading, we are navigating away
+                }
+                else
+                {
+                    ActiveLesson = null; // Handled by UI as "Lesson Not Found"
+                }
+            }
+            else
+            {
+                // Load active lesson details
+                ActiveLesson = await LessonClient.GetLessonAsync(CourseId, LessonId);
+            }
             
+            // Load course progress
+            try
+            {
+                CourseProgress = await LessonProgressClient.GetCourseProgressAsync(CourseId);
+            }
+            catch (Exception ex)
+            {
+                // Fallback gracefully if progress fails
+                Console.WriteLine("Could not load progress: " + ex.Message);
+            }
+
             CalculateNavIds();
         }
         catch (Exception ex)
@@ -225,6 +309,46 @@
         if (currentIndex >= 0 && currentIndex < Lessons.Count - 1)
         {
             NextLessonId = Lessons[currentIndex + 1].LessonId;
+        }
+    }
+
+    private async Task MarkAsComplete()
+    {
+        if (IsCompleting) return;
+        IsCompleting = true;
+        CompletionStatusMessage = null;
+        try
+        {
+            var result = await LessonProgressClient.CompleteLessonAsync(CourseId, LessonId);
+            if (result.IsSuccess)
+            {
+                // Refresh progress
+                CourseProgress = await LessonProgressClient.GetCourseProgressAsync(CourseId);
+                CompletionStatusMessage = "Lesson completed successfully!";
+                CompletionStatusIsError = false;
+            }
+            else
+            {
+                CompletionStatusIsError = true;
+                if (result.ErrorMessage == "LessonProgress.EnrollmentNotFound")
+                    CompletionStatusMessage = "Enroll in this course before marking lessons complete.";
+                else if (result.ErrorMessage == "LessonProgress.AlreadyCompleted")
+                    CompletionStatusMessage = "This lesson is already completed.";
+                else if (result.ErrorMessage == "LessonProgress.LessonArchived")
+                    CompletionStatusMessage = "This lesson is no longer available.";
+                else
+                    CompletionStatusMessage = "Could not mark the lesson as complete. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            CompletionStatusIsError = true;
+            CompletionStatusMessage = "Could not mark the lesson as complete. Please try again.";
+            Console.WriteLine("Could not mark as complete: " + ex.Message);
+        }
+        finally
+        {
+            IsCompleting = false;
         }
     }
 

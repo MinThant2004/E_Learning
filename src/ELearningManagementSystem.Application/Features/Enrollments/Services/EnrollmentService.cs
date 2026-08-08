@@ -91,7 +91,13 @@ public class EnrollmentService : IEnrollmentService
                 ThumbnailUrl = e.Course.ThumbnailUrl,
                 EnrollmentId = e.EnrollmentId,
                 EnrollDate = e.EnrollDate,
-                Completed = e.Completed
+                Completed = e.Completed,
+                CompletedCount = e.LessonProgresses
+                    .Where(lp => lp.Completed && !lp.Lesson.DeleteFlag)
+                    .Select(lp => lp.LessonId)
+                    .Distinct()
+                    .Count(),
+                TotalActiveLessons = e.Course.Lessons.Count(l => !l.DeleteFlag)
             })
             .ToListAsync(cancellationToken);
 

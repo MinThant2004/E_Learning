@@ -46,7 +46,7 @@ public class LessonService : ILessonService
         var totalCount = await dbQuery.CountAsync(cancellationToken);
 
         var lessons = await dbQuery
-            .OrderBy(l => l.DisplayOrder)
+            .OrderBy(l => l.DisplayOrder).ThenBy(l => l.CreatedAt)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(l => new LessonSummaryResponse
@@ -84,7 +84,7 @@ public class LessonService : ILessonService
         }
 
         var lessons = await query
-            .OrderBy(l => l.DisplayOrder)
+            .OrderBy(l => l.DisplayOrder).ThenBy(l => l.CreatedAt)
             .Select(l => new LessonSummaryResponse
             {
                 LessonId = l.LessonId,
@@ -181,6 +181,9 @@ public class LessonService : ILessonService
 
         _context.Lessons.Add(lesson);
         await _context.SaveChangesAsync(cancellationToken);
+        
+        await ResequenceLessonsAsync(request.CourseId, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
 
         return await GetLessonByIdAsync(lesson.CourseId, lesson.LessonId, cancellationToken);
     }
@@ -243,6 +246,9 @@ public class LessonService : ILessonService
         lesson.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        
+        await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
 
         return await GetLessonByIdAsync(lesson.CourseId, lesson.LessonId, cancellationToken);
     }
@@ -259,6 +265,10 @@ public class LessonService : ILessonService
         lesson.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        
+        await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        
         return Result.Success(true);
     }
 
@@ -279,6 +289,28 @@ public class LessonService : ILessonService
         lesson.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        
+        await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        
         return Result.Success(true);
+    }
+
+    private async Task ResequenceLessonsAsync(int courseId, CancellationToken cancellationToken)
+    {
+        var lessons = await _context.Lessons
+            .Where(l => l.CourseId == courseId && !l.DeleteFlag)
+            .OrderBy(l => l.DisplayOrder).ThenBy(l => l.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        int index = 1;
+        foreach (var l in lessons)
+        {
+            if (l.DisplayOrder != index)
+            {
+                l.DisplayOrder = index;
+            }
+            index++;
+        }
     }
 }

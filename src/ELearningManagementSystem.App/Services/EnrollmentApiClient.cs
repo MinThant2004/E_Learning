@@ -90,4 +90,8 @@ public class MyCourseResponse
     public int EnrollmentId { get; set; }
     public DateTime EnrollDate { get; set; }
     public bool Completed { get; set; }
+    public int CompletedCount { get; set; }
+    public int TotalActiveLessons { get; set; }
+    public double ProgressPercentage => TotalActiveLessons == 0 ? 0 : Math.Round((double)CompletedCount / TotalActiveLessons * 100, 2);
+    public bool IsComplete => TotalActiveLessons > 0 && CompletedCount >= TotalActiveLessons;
 }

@@ -29,6 +29,9 @@ public static class DependencyInjection
         // Enrollment Services
         services.AddScoped<ELearningManagementSystem.Application.Features.Enrollments.Services.IEnrollmentService, ELearningManagementSystem.Application.Features.Enrollments.Services.EnrollmentService>();
 
+        // Lesson Progress Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.LessonProgress.Services.ILessonProgressService, ELearningManagementSystem.Application.Features.LessonProgress.Services.LessonProgressService>();
+
         return services;
     }
 }
