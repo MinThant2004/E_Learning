@@ -10,6 +10,13 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Ensure wwwroot directory exists at startup so WebRootPath resolves correctly
+var wwwrootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwrootPath))
+{
+    Directory.CreateDirectory(wwwrootPath);
+}
+
 // Configure Serilog
 builder.Host.UseSerilog((context, loggerConfig) =>
 {

@@ -47,7 +47,8 @@ public class CourseService : ICourseService
                 Description = c.Description,
                 CategoryId = c.CategoryId,
                 CategoryName = c.Category.CategoryName,
-                Status = c.Status
+                Status = c.Status,
+                ThumbnailUrl = c.ThumbnailUrl
             })
             .ToListAsync(cancellationToken);
 

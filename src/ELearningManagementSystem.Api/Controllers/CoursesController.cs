@@ -147,6 +147,16 @@ public class CoursesController : ControllerBase
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
+    private string GetWebRootPath()
+    {
+        var path = _env.WebRootPath;
+        if (string.IsNullOrEmpty(path))
+        {
+            path = Path.Combine(_env.ContentRootPath, "wwwroot");
+        }
+        return path;
+    }
+
     private async Task<(string? path, string? error)> SaveThumbnailAsync(IFormFile file)
     {
         if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
@@ -165,7 +175,7 @@ public class CoursesController : ControllerBase
             return (null, "Image file size must be less than 5 MB.");
 
         var fileName = $"{Guid.NewGuid()}{extension}";
-        var uploadDir = Path.Combine(_env.WebRootPath, "uploads", "courses");
+        var uploadDir = Path.Combine(GetWebRootPath(), "uploads", "courses");
 
         if (!Directory.Exists(uploadDir))
             Directory.CreateDirectory(uploadDir);
@@ -185,7 +195,7 @@ public class CoursesController : ControllerBase
         {
             if (string.IsNullOrEmpty(relativeUrl)) return;
             var normalizedPath = relativeUrl.TrimStart('/');
-            var absolutePath = Path.Combine(_env.WebRootPath, normalizedPath);
+            var absolutePath = Path.Combine(GetWebRootPath(), normalizedPath);
             if (System.IO.File.Exists(absolutePath))
             {
                 System.IO.File.Delete(absolutePath);
