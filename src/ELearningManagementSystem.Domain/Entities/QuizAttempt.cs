@@ -13,4 +13,5 @@ public partial class QuizAttempt
 
     public virtual Quiz Quiz { get; set; } = null!;
     public virtual User User { get; set; } = null!;
+    public virtual ICollection<QuizAnswer> QuizAnswers { get; set; } = new List<QuizAnswer>();
 }

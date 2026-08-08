@@ -22,6 +22,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
     public virtual DbSet<QuestionOption> QuestionOptions { get; set; }
     public virtual DbSet<Quiz> Quizzes { get; set; }
     public virtual DbSet<QuizAttempt> QuizAttempts { get; set; }
+    public virtual DbSet<QuizAnswer> QuizAnswers { get; set; }
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<Role> Roles { get; set; }
     public virtual DbSet<RolePermission> RolePermissions { get; set; }
@@ -136,6 +137,20 @@ public partial class AppDbContext : DbContext, IAppDbContext
                 .OnDelete(DeleteBehavior.ClientSetNull);
             entity.HasOne(d => d.User).WithMany(p => p.QuizAttempts)
                 .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<QuizAnswer>(entity =>
+        {
+            entity.HasKey(e => e.QuizAnswerId);
+            entity.HasOne(d => d.Attempt).WithMany(p => p.QuizAnswers)
+                .HasForeignKey(d => d.AttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.Question).WithMany()
+                .HasForeignKey(d => d.QuestionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.SelectedOption).WithMany()
+                .HasForeignKey(d => d.SelectedOptionId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
 

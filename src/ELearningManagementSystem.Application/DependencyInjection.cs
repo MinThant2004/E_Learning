@@ -34,6 +34,9 @@ public static class DependencyInjection
 
         // Quiz Services
         services.AddScoped<ELearningManagementSystem.Application.Features.Quizzes.Services.IQuizService, ELearningManagementSystem.Application.Features.Quizzes.Services.QuizService>();
+        
+        // Quiz Attempt Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.QuizAttempts.Services.IQuizAttemptService, ELearningManagementSystem.Application.Features.QuizAttempts.Services.QuizAttemptService>();
 
         return services;
     }

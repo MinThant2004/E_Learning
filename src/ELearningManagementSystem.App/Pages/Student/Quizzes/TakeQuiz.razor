@@ -1,0 +1,229 @@
+@page "/courses/{CourseId:int}/quiz"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject QuizAttemptApiClient QuizClient
+@inject NavigationManager NavManager
+
+<PageTitle>Final Quiz</PageTitle>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <button @onclick="GoBack" class="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
+        <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+        </svg>
+        Back to Course
+    </button>
+
+    @if (IsLoading)
+    {
+        <SkeletonCard />
+    }
+    else if (HasError)
+    {
+        <EmptyState Title="Not Available" Description="@ErrorMessage">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else if (Quiz != null)
+    {
+        <div class="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-100 overflow-hidden">
+            <div class="p-8 border-b border-slate-100 bg-slate-50">
+                <h1 class="text-3xl font-bold text-slate-900">@Quiz.Title</h1>
+                @if (!string.IsNullOrEmpty(Quiz.Description))
+                {
+                    <p class="mt-4 text-slate-600">@Quiz.Description</p>
+                }
+            </div>
+
+            <div class="p-8">
+                @if (Quiz.Questions != null && Quiz.Questions.Any())
+                {
+                    var currentQuestionIndex = 0;
+                    @foreach (var question in Quiz.Questions)
+                    {
+                        var qIndex = currentQuestionIndex++;
+                        <div class="mb-10 last:mb-0">
+                            <h3 class="text-lg font-semibold text-slate-900 mb-4">
+                                <span class="text-indigo-600 mr-2">@(qIndex + 1).</span> @question.QuestionText
+                            </h3>
+                            <div class="space-y-3 pl-6">
+                                @foreach (var option in question.Options)
+                                {
+                                    <label class="relative flex items-center p-4 cursor-pointer rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors @(GetSelectedOptionClass(question.QuestionId, option.OptionId))">
+                                        <input type="radio" 
+                                               name="question_@question.QuestionId" 
+                                               value="@option.OptionId"
+                                               checked="@IsOptionSelected(question.QuestionId, option.OptionId)"
+                                               @onchange="@(() => SelectOption(question.QuestionId, option.OptionId))"
+                                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                                        <span class="ml-3 block text-sm font-medium text-slate-700">
+                                            @option.OptionText
+                                        </span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mt-8 pt-8 border-t border-slate-100 flex justify-end">
+                        <button @onclick="SubmitQuiz" disabled="@IsSubmitting" class="inline-flex justify-center items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all">
+                            @if (IsSubmitting)
+                            {
+                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Submitting...</span>
+                            }
+                            else
+                            {
+                                <span>Submit Quiz</span>
+                            }
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-slate-500 italic">No questions available for this quiz.</p>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int CourseId { get; set; }
+
+    private AvailableQuizResponse? Quiz;
+    private bool IsLoading = true;
+    private bool HasError = false;
+    private string ErrorMessage = string.Empty;
+    private bool IsSubmitting = false;
+
+    // Dictionary to store answers: QuestionId -> SelectedOptionId
+    private Dictionary<int, int> SelectedAnswers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQuiz();
+    }
+
+    private async Task LoadQuiz()
+    {
+        IsLoading = true;
+        HasError = false;
+        
+        var result = await QuizClient.GetAvailableQuizAsync(CourseId);
+        if (result.Success)
+        {
+            Quiz = result.Data;
+            SelectedAnswers.Clear();
+        }
+        else
+        {
+            HasError = true;
+            ErrorMessage = "Failed to load quiz.";
+            
+            if (!string.IsNullOrEmpty(result.Error))
+            {
+                try 
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(result.Error);
+                    if (doc.RootElement.TryGetProperty("error", out var errorProp))
+                    {
+                        var errStr = errorProp.GetString() ?? "";
+                        if (errStr.Contains(":"))
+                        {
+                            ErrorMessage = errStr.Split(':', 2)[1].Trim();
+                        }
+                        else
+                        {
+                            ErrorMessage = errStr;
+                        }
+                    }
+                    else
+                    {
+                        ErrorMessage = "There is no active final quiz available for this course.";
+                    }
+                }
+                catch
+                {
+                    if (result.Error.Contains("QuizNotFound"))
+                    {
+                        ErrorMessage = "There is no active final quiz available for this course.";
+                    }
+                    else
+                    {
+                        ErrorMessage = "There is no active final quiz available for this course.";
+                    }
+                }
+            }
+        }
+        
+        IsLoading = false;
+    }
+
+    private void SelectOption(int questionId, int optionId)
+    {
+        SelectedAnswers[questionId] = optionId;
+    }
+
+    private bool IsOptionSelected(int questionId, int optionId)
+    {
+        return SelectedAnswers.TryGetValue(questionId, out var selectedId) && selectedId == optionId;
+    }
+
+    private string GetSelectedOptionClass(int questionId, int optionId)
+    {
+        return IsOptionSelected(questionId, optionId) ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500" : "";
+    }
+
+    private async Task SubmitQuiz()
+    {
+        if (Quiz == null) return;
+
+        // Check if all questions are answered
+        if (SelectedAnswers.Count < Quiz.Questions.Count)
+        {
+            // Optional: You could show a validation message here
+            // For now, we allow submission, or we could prompt "Please answer all questions"
+        }
+
+        IsSubmitting = true;
+
+        var request = new SubmitQuizAttemptRequest
+        {
+            Answers = SelectedAnswers.Select(kvp => new SubmitQuizAnswerRequest
+            {
+                QuestionId = kvp.Key,
+                SelectedOptionId = kvp.Value
+            }).ToList()
+        };
+
+        var result = await QuizClient.SubmitQuizAttemptAsync(CourseId, request);
+        
+        if (result.Success && result.Data != null)
+        {
+            NavManager.NavigateTo($"/courses/{CourseId}/quiz/results/{result.Data.AttemptId}");
+        }
+        else
+        {
+            HasError = true;
+            ErrorMessage = result.Error ?? "Failed to submit quiz.";
+        }
+
+        IsSubmitting = false;
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo($"/courses/{CourseId}");
+    }
+}

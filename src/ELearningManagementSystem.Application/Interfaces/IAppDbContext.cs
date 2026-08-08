@@ -16,6 +16,7 @@ public interface IAppDbContext
     DbSet<QuestionOption> QuestionOptions { get; }
     DbSet<Quiz> Quizzes { get; }
     DbSet<QuizAttempt> QuizAttempts { get; }
+    DbSet<QuizAnswer> QuizAnswers { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Role> Roles { get; }
     DbSet<RolePermission> RolePermissions { get; }

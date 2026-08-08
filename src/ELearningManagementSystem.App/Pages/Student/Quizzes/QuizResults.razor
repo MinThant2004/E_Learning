@@ -1,0 +1,130 @@
+@page "/courses/{CourseId:int}/quiz/results/{AttemptId:int}"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject QuizAttemptApiClient QuizClient
+@inject NavigationManager NavManager
+
+<PageTitle>Quiz Results</PageTitle>
+
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <button @onclick="GoBackToCourse" class="mb-8 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
+        <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+        </svg>
+        Back to Course
+    </button>
+
+    @if (IsLoading)
+    {
+        <SkeletonCard />
+    }
+    else if (HasError || Result == null)
+    {
+        <EmptyState Title="Not Found" Description="Could not load the quiz results.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-100 overflow-hidden">
+            <div class="p-10 text-center @(Result.Passed ? "bg-green-50 border-b border-green-100" : "bg-red-50 border-b border-red-100")">
+                
+                @if (Result.Passed)
+                {
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+                        <svg class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl font-bold text-green-900 mb-2">Congratulations!</h2>
+                    <p class="text-green-700 font-medium">You have successfully passed the quiz.</p>
+                }
+                else
+                {
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-6">
+                        <svg class="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl font-bold text-red-900 mb-2">Keep Trying!</h2>
+                    <p class="text-red-700 font-medium">You did not pass this time. Review the material and try again.</p>
+                }
+            </div>
+
+            <div class="p-10">
+                <div class="grid grid-cols-2 gap-8 mb-8">
+                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-sm font-medium text-slate-500 mb-1">Final Score</p>
+                        <p class="text-4xl font-black text-slate-900">@Math.Round(Result.Score)%</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-sm font-medium text-slate-500 mb-1">Correct Answers</p>
+                        <p class="text-4xl font-black text-slate-900">@Result.CorrectAnswers <span class="text-xl text-slate-400">/ @Result.TotalQuestions</span></p>
+                    </div>
+                </div>
+
+                <div class="text-center text-sm text-slate-500 mb-8">
+                    Submitted on @Result.SubmittedAt.ToLocalTime().ToString("MMMM dd, yyyy h:mm tt")
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                    <button @onclick="GoBackToCourse" class="inline-flex justify-center items-center px-8 py-3 border border-slate-300 rounded-full shadow-sm text-base font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                        Back to Course
+                    </button>
+                    @if (!Result.Passed)
+                    {
+                        <button @onclick="RetakeQuiz" class="inline-flex justify-center items-center px-8 py-3 border border-transparent rounded-full shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                            Retake Quiz
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int CourseId { get; set; }
+
+    [Parameter]
+    public int AttemptId { get; set; }
+
+    private QuizAttemptResultResponse? Result;
+    private bool IsLoading = true;
+    private bool HasError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        HasError = false;
+
+        var result = await QuizClient.GetAttemptDetailsAsync(AttemptId);
+        if (result.Success)
+        {
+            Result = result.Data;
+        }
+        else
+        {
+            HasError = true;
+        }
+
+        IsLoading = false;
+    }
+
+    private void GoBackToCourse()
+    {
+        NavManager.NavigateTo($"/courses/{CourseId}");
+    }
+
+    private void RetakeQuiz()
+    {
+        NavManager.NavigateTo($"/courses/{CourseId}/quiz");
+    }
+}
