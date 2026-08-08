@@ -4,6 +4,7 @@
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Policy = "Permission:Course.Read")]
+@implements IDisposable
 @inject CourseApiClient CourseClient
 @inject CategoryApiClient CategoryClient
 @using ELearningManagementSystem.App.Components.Shared
@@ -177,10 +178,18 @@
         </div>
     }
 
-    <div class="mb-4 flex justify-end">
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <div class="w-full sm:max-w-xs relative text-slate-400 focus-within:text-indigo-600">
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <input type="text" @bind="SearchTerm" @bind:event="oninput" placeholder="Search courses..." class="block w-full rounded-xl border-slate-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2.5 transition-colors" />
+        </div>
         <div class="inline-flex items-center space-x-2">
             <label for="statusFilter" class="text-sm font-medium text-slate-700">Status:</label>
-            <select id="statusFilter" @bind="StatusFilterString" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 pl-3 pr-10">
+            <select id="statusFilter" @bind="StatusFilterString" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-2.5 pl-3 pr-10">
                 <option value="false">Active</option>
                 <option value="true">Archived</option>
                 <option value="null">All</option>
@@ -313,6 +322,47 @@
                 </tbody>
             </table>
         </div>
+        @if (TotalCount > 0)
+        {
+            <div class="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+                <div class="flex flex-1 justify-between sm:hidden">
+                    <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Previous</button>
+                    <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Next</button>
+                </div>
+                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-slate-700">
+                            Showing <span class="font-medium">@(((CurrentPage - 1) * PageSize) + 1)</span> to <span class="font-medium">@(Math.Min(CurrentPage * PageSize, TotalCount))</span> of <span class="font-medium">@TotalCount</span> results
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <select @bind="PageSizeStr" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1 pl-2 pr-8">
+                            <option value="10">10 / page</option>
+                            <option value="15">15 / page</option>
+                            <option value="25">25 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                            <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
+                                <span class="sr-only">Previous</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
+                                Page @CurrentPage of @TotalPages
+                            </span>
+                            <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
+                                <span class="sr-only">Next</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
 <ConfirmationModal IsVisible="@IsConfirmVisible" Title="@ConfirmTitle" Message="@ConfirmMessage" ConfirmText="@ConfirmText" IsDestructive="@(!ConfirmRestore)" OnConfirm="ConfirmStatusChange" OnCancel="CloseConfirmation" />
@@ -354,8 +404,85 @@
         }
     }
 
+    private string? _searchTerm;
+    private string? SearchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            if (_searchTerm != value)
+            {
+                _searchTerm = value;
+                CurrentPage = 1;
+                DebounceSearch();
+            }
+        }
+    }
+
+    private System.Timers.Timer? _debounceTimer;
+
+    private void DebounceSearch()
+    {
+        _debounceTimer?.Stop();
+        if (_debounceTimer == null)
+        {
+            _debounceTimer = new System.Timers.Timer(400);
+            _debounceTimer.Elapsed += async (s, e) =>
+            {
+                _debounceTimer.Stop();
+                await InvokeAsync(async () =>
+                {
+                    await LoadCourses();
+                });
+            };
+            _debounceTimer.AutoReset = false;
+        }
+        _debounceTimer.Start();
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+
     private int CurrentPage = 1;
     private int PageSize = 10;
+    private int TotalPages = 1;
+    private int TotalCount = 0;
+
+    private string PageSizeStr
+    {
+        get => PageSize.ToString();
+        set
+        {
+            if (int.TryParse(value, out int size) && size != PageSize)
+            {
+                PageSize = size;
+                CurrentPage = 1;
+                _ = LoadCourses();
+            }
+        }
+    }
+
+    private Task PreviousPage()
+    {
+        if (CurrentPage > 1)
+        {
+            CurrentPage--;
+            return LoadCourses();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task NextPage()
+    {
+        if (CurrentPage < TotalPages)
+        {
+            CurrentPage++;
+            return LoadCourses();
+        }
+        return Task.CompletedTask;
+    }
 
     // File Upload Local State
     private string? ThumbnailPreviewUrl;
@@ -376,12 +503,14 @@
         ErrorMessage = null;
         try
         {
-            var result = await CourseClient.GetCoursesAsync(page: CurrentPage, pageSize: PageSize, isArchived: StatusFilter);
+            var result = await CourseClient.GetCoursesAsync(page: CurrentPage, pageSize: PageSize, searchTerm: _searchTerm, isArchived: StatusFilter);
             if (result != null)
             {
                 Courses = result.Items.ToList();
                 CurrentPage = result.Page;
                 PageSize = result.PageSize;
+                TotalPages = result.TotalPages;
+                TotalCount = result.TotalCount;
             }
         }
         catch (Exception ex)
@@ -404,7 +533,7 @@
             var result = await CategoryClient.GetCategoriesAsync();
             if (result != null)
             {
-                Categories = result.ToList();
+                Categories = result.Items.ToList();
             }
         }
         catch (Exception ex)
@@ -612,7 +741,9 @@
             var response = ConfirmRestore ? await CourseClient.RestoreCourseAsync(PendingCourse.CourseId) : await CourseClient.ArchiveCourseAsync(PendingCourse.CourseId);
             if (response.IsSuccessStatusCode)
             {
-                IsConfirmVisible = false; await LoadCourses();
+                IsConfirmVisible = false;
+                if (Courses.Count == 1 && CurrentPage > 1) CurrentPage--;
+                await LoadCourses();
             }
             else
             {

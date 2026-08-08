@@ -21,7 +21,7 @@ public class LessonsController : ControllerBase
     /// <summary>GET /api/courses/{courseId}/lessons — Get lessons for a course with optional status filter</summary>
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetLessons(int courseId, [FromQuery] bool? isArchived, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetLessons(int courseId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? searchTerm = null, [FromQuery] bool? isArchived = null, CancellationToken cancellationToken = default)
     {
         var hasLessonReadPermission = User.Claims.Any(c => c.Type == "permission" && c.Value == "Lesson.Read");
         if (!hasLessonReadPermission)
@@ -29,7 +29,16 @@ public class LessonsController : ControllerBase
             isArchived = false;
         }
 
-        var result = await _lessonService.GetLessonsByCourseIdAsync(courseId, isArchived, cancellationToken);
+        var query = new LessonListQuery
+        {
+            CourseId = courseId,
+            Page = page,
+            PageSize = pageSize,
+            SearchTerm = searchTerm,
+            IsArchived = isArchived
+        };
+
+        var result = await _lessonService.GetPagedListAsync(query, cancellationToken);
         if (result.IsFailure)
         {
             if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });

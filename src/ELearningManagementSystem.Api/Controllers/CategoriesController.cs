@@ -21,9 +21,9 @@ public class CategoriesController : ControllerBase
     /// <summary>GET /api/categories — Fetch categories with optional status filtering</summary>
     [HttpGet]
     [Authorize(Policy = "Permission:Category.Read")]
-    public async Task<IActionResult> GetCategories([FromQuery] bool? isArchived, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetCategories([FromQuery] CategoryListQuery query, CancellationToken cancellationToken)
     {
-        var result = await _categoryService.GetCategoriesAsync(isArchived, cancellationToken);
+        var result = await _categoryService.GetPagedListAsync(query, cancellationToken);
         if (result.IsFailure) return BadRequest(new { Error = result.Error });
         return Ok(result.Value);
     }

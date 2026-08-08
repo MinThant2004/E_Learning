@@ -14,14 +14,18 @@ public class LessonApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<IEnumerable<LessonSummaryResponse>?> GetLessonsAsync(int courseId, bool? isArchived = false)
+    public async Task<PagedResult<LessonSummaryResponse>?> GetLessonsAsync(int courseId, int page = 1, int pageSize = 10, string? searchTerm = null, bool? isArchived = null)
     {
-        var url = $"api/courses/{courseId}/lessons";
+        var url = $"api/courses/{courseId}/lessons?page={page}&pageSize={pageSize}";
         if (isArchived.HasValue)
         {
-            url += $"?isArchived={isArchived.Value.ToString().ToLower()}";
+            url += $"&isArchived={isArchived.Value.ToString().ToLower()}";
         }
-        return await _httpClient.GetFromJsonAsync<IEnumerable<LessonSummaryResponse>>(url);
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            url += $"&searchTerm={System.Uri.EscapeDataString(searchTerm)}";
+        }
+        return await _httpClient.GetFromJsonAsync<PagedResult<LessonSummaryResponse>>(url);
     }
 
     public async Task<LessonDetailResponse?> GetLessonAsync(int courseId, int lessonId)

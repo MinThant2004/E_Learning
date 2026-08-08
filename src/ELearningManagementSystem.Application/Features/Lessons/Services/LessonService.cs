@@ -20,6 +20,50 @@ public class LessonService : ILessonService
         _context = context;
     }
 
+    public async Task<Result<PagedResult<LessonSummaryResponse>>> GetPagedListAsync(LessonListQuery query, CancellationToken cancellationToken = default)
+    {
+        var courseExists = await _context.Courses
+            .AnyAsync(c => c.CourseId == query.CourseId, cancellationToken);
+
+        if (!courseExists)
+            return Result.Failure<PagedResult<LessonSummaryResponse>>("CourseNotFound");
+
+        IQueryable<Lesson> dbQuery = _context.Lessons
+            .AsNoTracking()
+            .Where(l => l.CourseId == query.CourseId);
+
+        if (query.IsArchived.HasValue)
+        {
+            dbQuery = dbQuery.Where(l => l.DeleteFlag == query.IsArchived.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            var search = query.SearchTerm.Trim().ToLower();
+            dbQuery = dbQuery.Where(l => l.Title.ToLower().Contains(search) || l.Content.ToLower().Contains(search));
+        }
+
+        var totalCount = await dbQuery.CountAsync(cancellationToken);
+
+        var lessons = await dbQuery
+            .OrderBy(l => l.DisplayOrder)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(l => new LessonSummaryResponse
+            {
+                LessonId = l.LessonId,
+                CourseId = l.CourseId,
+                Title = l.Title,
+                DisplayOrder = l.DisplayOrder,
+                DeleteFlag = l.DeleteFlag
+            })
+            .ToListAsync(cancellationToken);
+
+        var result = new PagedResult<LessonSummaryResponse>(lessons, totalCount, query.Page, query.PageSize);
+
+        return Result.Success(result);
+    }
+
     public async Task<Result<IEnumerable<LessonSummaryResponse>>> GetLessonsByCourseIdAsync(int courseId, bool? isArchived = false, CancellationToken cancellationToken = default)
     {
         // 1. Verify parent course exists

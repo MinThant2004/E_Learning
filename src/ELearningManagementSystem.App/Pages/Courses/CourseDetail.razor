@@ -197,10 +197,10 @@
         try
         {
             Course = await CourseClient.GetCourseAsync(Id);
-            var lessonList = await LessonClient.GetLessonsAsync(Id);
+            var lessonList = await LessonClient.GetLessonsAsync(Id, pageSize: 1000);
             if (lessonList != null)
             {
-                Lessons = lessonList.OrderBy(l => l.DisplayOrder).ToList();
+                Lessons = lessonList.Items.OrderBy(l => l.DisplayOrder).ToList();
             }
 
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -235,7 +235,7 @@
                 EnrollError = result.Error;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             EnrollError = "An error occurred while enrolling.";
         }

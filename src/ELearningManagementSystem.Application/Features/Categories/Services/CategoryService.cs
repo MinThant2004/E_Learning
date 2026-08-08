@@ -44,6 +44,40 @@ public class CategoryService : ICategoryService
         return Result.Success<IEnumerable<CategoryResponse>>(categories);
     }
 
+    public async Task<Result<PagedResult<CategoryResponse>>> GetPagedListAsync(CategoryListQuery queryDto, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Category> query = _context.Categories.AsNoTracking();
+
+        if (queryDto.IsArchived.HasValue)
+        {
+            query = query.Where(c => c.DeleteFlag == queryDto.IsArchived.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryDto.SearchTerm))
+        {
+            var search = queryDto.SearchTerm.ToLower();
+            query = query.Where(c => c.CategoryName.ToLower().Contains(search) || (c.Description != null && c.Description.ToLower().Contains(search)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var categories = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .Skip((queryDto.Page - 1) * queryDto.PageSize)
+            .Take(queryDto.PageSize)
+            .Select(c => new CategoryResponse
+            {
+                CategoryId = c.CategoryId,
+                CategoryName = c.CategoryName,
+                Description = c.Description,
+                CreatedAt = c.CreatedAt,
+                DeleteFlag = c.DeleteFlag
+            })
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(new PagedResult<CategoryResponse>(categories, totalCount, queryDto.Page, queryDto.PageSize));
+    }
+
     public async Task<Result<CategoryResponse>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var category = await _context.Categories

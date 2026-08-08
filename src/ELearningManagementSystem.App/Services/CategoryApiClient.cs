@@ -14,14 +14,13 @@ public class CategoryApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<IEnumerable<CategoryResponse>?> GetCategoriesAsync(bool? isArchived = false)
+    public async Task<PagedResult<CategoryResponse>?> GetCategoriesAsync(int page = 1, int pageSize = 10, string? searchTerm = null, bool? isArchived = false)
     {
-        var url = "api/categories";
-        if (isArchived.HasValue)
-        {
-            url += $"?isArchived={isArchived.Value.ToString().ToLower()}";
-        }
-        return await _httpClient.GetFromJsonAsync<IEnumerable<CategoryResponse>>(url);
+        var url = $"api/categories?page={page}&pageSize={pageSize}";
+        if (!string.IsNullOrEmpty(searchTerm)) url += $"&searchTerm={System.Uri.EscapeDataString(searchTerm)}";
+        if (isArchived.HasValue) url += $"&isArchived={isArchived.Value.ToString().ToLower()}";
+        
+        return await _httpClient.GetFromJsonAsync<PagedResult<CategoryResponse>>(url);
     }
 
     public async Task<CategoryResponse?> GetCategoryAsync(int id)

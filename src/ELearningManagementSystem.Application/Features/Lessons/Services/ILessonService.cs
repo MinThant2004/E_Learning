@@ -8,6 +8,7 @@ namespace ELearningManagementSystem.Application.Features.Lessons.Services;
 
 public interface ILessonService
 {
+    Task<Result<PagedResult<LessonSummaryResponse>>> GetPagedListAsync(LessonListQuery query, CancellationToken cancellationToken = default);
     Task<Result<IEnumerable<LessonSummaryResponse>>> GetLessonsByCourseIdAsync(int courseId, bool? isArchived = false, CancellationToken cancellationToken = default);
     Task<Result<LessonDetailResponse>> GetLessonByIdAsync(int courseId, int lessonId, CancellationToken cancellationToken = default);
     Task<Result<LessonDetailResponse>> CreateAsync(CreateLessonRequest request, CancellationToken cancellationToken = default);

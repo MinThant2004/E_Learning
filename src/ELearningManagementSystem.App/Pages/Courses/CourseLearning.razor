@@ -189,10 +189,10 @@
         try
         {
             // Load list of lessons
-            var listResult = await LessonClient.GetLessonsAsync(CourseId);
+            var listResult = await LessonClient.GetLessonsAsync(CourseId, pageSize: 1000);
             if (listResult != null)
             {
-                Lessons = listResult.OrderBy(l => l.DisplayOrder).ToList();
+                Lessons = listResult.Items.OrderBy(l => l.DisplayOrder).ToList();
             }
 
             // Load active lesson details
