@@ -1,3 +1,5 @@
+using System;
+
 namespace ELearningManagementSystem.Application.Features.Courses.DTOs;
 
 public class CourseDetailResponse
@@ -11,4 +13,5 @@ public class CourseDetailResponse
     public DateTime? UpdatedAt { get; set; }
     public int CreatedBy { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public bool DeleteFlag { get; set; }
 }

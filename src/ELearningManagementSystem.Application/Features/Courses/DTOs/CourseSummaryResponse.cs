@@ -9,4 +9,5 @@ public class CourseSummaryResponse
     public string CategoryName { get; set; } = string.Empty;
     public bool Status { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public bool DeleteFlag { get; set; }
 }

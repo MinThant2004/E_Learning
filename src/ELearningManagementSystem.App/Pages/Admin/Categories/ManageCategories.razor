@@ -2,10 +2,10 @@
 
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Policy = "Permission:Category.Read")]
 @inject CategoryApiClient CategoryClient
-@inject IJSRuntime JS
 
 <PageTitle>Manage Categories</PageTitle>
 
@@ -96,6 +96,17 @@
         </div>
     }
 
+    <div class="mb-4 flex justify-end">
+        <div class="inline-flex items-center space-x-2">
+            <label for="statusFilter" class="text-sm font-medium text-slate-700">Status:</label>
+            <select id="statusFilter" @bind="StatusFilterString" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 pl-3 pr-10">
+                <option value="false">Active</option>
+                <option value="true">Archived</option>
+                <option value="null">All</option>
+            </select>
+        </div>
+    </div>
+
     <div class="bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-2xl overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
@@ -104,7 +115,7 @@
                         <th scope="col" class="py-4 pl-4 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pl-6 w-16">No.</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Category Name</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Created At</th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                         <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
                             <span class="sr-only">Actions</span>
                         </th>
@@ -145,29 +156,45 @@
                                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">@rowNum</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-semibold">@category.CategoryName</td>
                                 <td class="px-3 py-4 text-sm text-slate-500 max-w-xs truncate" title="@category.Description">@category.Description</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@category.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @(category.DeleteFlag ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800")">@(category.DeleteFlag ? "Archived" : "Active")</span></td>
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                     <div class="flex items-center justify-end space-x-3">
-                                        <AuthorizeView Policy="Permission:Category.Update">
-                                            <Authorized>
-                                                <button @onclick="() => ShowEditForm(category)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
-                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    <span class="sr-only">Edit</span>
-                                                </button>
-                                            </Authorized>
-                                        </AuthorizeView>
-                                        <AuthorizeView Policy="Permission:Category.Delete">
-                                            <Authorized>
-                                                <button @onclick="() => SoftDeleteCategory(category.CategoryId)" disabled="@(IsSaving || IsDeleting)" class="text-red-500 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50 disabled:opacity-50" title="Delete">
-                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                    <span class="sr-only">Delete</span>
-                                                </button>
-                                            </Authorized>
-                                        </AuthorizeView>
+                                        @if (!category.DeleteFlag)
+                                        {
+                                            <AuthorizeView Policy="Permission:Category.Update">
+                                                <Authorized>
+                                                    <button @onclick="() => ShowEditForm(category)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
+                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        <span class="sr-only">Edit</span>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                            <AuthorizeView Policy="Permission:Category.Delete">
+                                                <Authorized>
+                                                    <button @onclick="() => OpenArchive(category)" disabled="@(IsSaving || IsDeleting)" class="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded hover:bg-amber-50 disabled:opacity-50" title="Archive">
+                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        <span class="sr-only">Archive</span>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                        }
+                                        else
+                                        {
+                                            <AuthorizeView Policy="Permission:Category.Delete">
+                                                <Authorized>
+                                                    <button @onclick="() => OpenArchive(category)" disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-800 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Restore">
+                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                        </svg>
+                                                        <span class="sr-only">Restore</span>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -178,6 +205,7 @@
         </div>
     </div>
 </div>
+<ConfirmationModal IsVisible="@IsConfirmVisible" Title="@ConfirmTitle" Message="@ConfirmMessage" ConfirmText="@ConfirmText" IsDestructive="@(!ConfirmRestore)" OnConfirm="ConfirmStatusChange" OnCancel="CloseConfirmation" />
 
 @code {
     private List<CategoryResponse> Categories = new();
@@ -191,6 +219,26 @@
     
     private int? EditingCategoryId;
     private CreateCategoryRequest CurrentCategory = new();
+    private bool IsConfirmVisible, ConfirmRestore;
+    private CategoryResponse? PendingCategory;
+    private string ConfirmTitle => ConfirmRestore ? "Restore Category?" : "Archive Category?";
+    private string ConfirmText => ConfirmRestore ? "Restore" : "Archive";
+    private string ConfirmMessage => ConfirmRestore ? $"Are you sure you want to restore \"{PendingCategory?.CategoryName}\"?" : $"Are you sure you want to archive \"{PendingCategory?.CategoryName}\"?";
+
+    private bool? StatusFilter = false;
+    private string StatusFilterString
+    {
+        get => StatusFilter switch { false => "false", true => "true", _ => "null" };
+        set
+        {
+            bool? newValue = value switch { "false" => false, "true" => true, _ => null };
+            if (StatusFilter != newValue)
+            {
+                StatusFilter = newValue;
+                _ = LoadCategories();
+            }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -203,7 +251,7 @@
         ErrorMessage = null;
         try
         {
-            var result = await CategoryClient.GetCategoriesAsync();
+            var result = await CategoryClient.GetCategoriesAsync(StatusFilter);
             if (result != null)
             {
                 Categories = result.ToList();
@@ -216,6 +264,7 @@
         finally
         {
             IsLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -312,20 +361,21 @@
         }
     }
 
-    private async Task SoftDeleteCategory(int id)
+    private void OpenArchive(CategoryResponse category) { PendingCategory = category; ConfirmRestore = category.DeleteFlag; IsConfirmVisible = true; }
+    private void CloseConfirmation() => IsConfirmVisible = false;
+    private async Task ConfirmStatusChange()
     {
+        if (PendingCategory is null) return;
         if (IsDeleting) return;
 
-        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this category?"))
-        {
             IsDeleting = true;
             ErrorMessage = null;
             try
             {
-                var response = await CategoryClient.DeleteCategoryAsync(id);
+                var response = ConfirmRestore ? await CategoryClient.RestoreCategoryAsync(PendingCategory.CategoryId) : await CategoryClient.ArchiveCategoryAsync(PendingCategory.CategoryId);
                 if (response.IsSuccessStatusCode)
                 {
-                    await LoadCategories();
+                    IsConfirmVisible = false; await LoadCategories();
                 }
                 else
                 {
@@ -340,7 +390,6 @@
             {
                 IsDeleting = false;
             }
-        }
     }
 
     private class ApiErrorResponse

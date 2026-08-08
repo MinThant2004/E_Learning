@@ -15,11 +15,12 @@ public class CourseApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<PagedResult<CourseSummaryResponse>?> GetCoursesAsync(int page = 1, int pageSize = 10, string? searchTerm = null, bool includeDeleted = false)
+    public async Task<PagedResult<CourseSummaryResponse>?> GetCoursesAsync(int page = 1, int pageSize = 10, string? searchTerm = null, bool? isArchived = false, bool includeDeleted = false)
     {
         var queryParams = $"?page={page}&pageSize={pageSize}";
         if (!string.IsNullOrEmpty(searchTerm)) queryParams += $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
-        if (includeDeleted) queryParams += "&includeDeleted=true";
+        if (isArchived.HasValue) queryParams += $"&isArchived={isArchived.Value.ToString().ToLower()}";
+        else if (includeDeleted) queryParams += "&includeDeleted=true";
 
         return await _httpClient.GetFromJsonAsync<PagedResult<CourseSummaryResponse>>($"api/courses{queryParams}");
     }
@@ -66,9 +67,14 @@ public class CourseApiClient
         return await _httpClient.PutAsync($"api/courses/{id}", content);
     }
 
-    public async Task<HttpResponseMessage> DeleteCourseAsync(int id)
+    public async Task<HttpResponseMessage> ArchiveCourseAsync(int id)
     {
-        return await _httpClient.DeleteAsync($"api/courses/{id}");
+        return await _httpClient.PostAsync($"api/courses/{id}/archive", null);
+    }
+
+    public async Task<HttpResponseMessage> RestoreCourseAsync(int id)
+    {
+        return await _httpClient.PostAsync($"api/courses/{id}/restore", null);
     }
 }
 
@@ -90,6 +96,7 @@ public class CourseSummaryResponse
     public string CategoryName { get; set; } = string.Empty;
     public bool Status { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public bool DeleteFlag { get; set; }
 }
 
 public class CourseDetailResponse
@@ -103,6 +110,7 @@ public class CourseDetailResponse
     public DateTime? UpdatedAt { get; set; }
     public int CreatedBy { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public bool DeleteFlag { get; set; }
 }
 
 public class CreateCourseRequest

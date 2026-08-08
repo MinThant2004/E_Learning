@@ -6,4 +6,5 @@ public class CourseListQuery
     public int PageSize { get; set; } = 10;
     public string? SearchTerm { get; set; }
     public bool IncludeDeleted { get; set; } = false;
+    public bool? IsArchived { get; set; } = null;
 }

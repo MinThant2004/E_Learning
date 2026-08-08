@@ -30,6 +30,13 @@ public class CoursesController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetCourses([FromQuery] CourseListQuery query, CancellationToken cancellationToken)
     {
+        var hasCourseReadPermission = User.Claims.Any(c => c.Type == "permission" && c.Value == "Course.Read");
+        if (!hasCourseReadPermission)
+        {
+            query.IsArchived = false;
+            query.IncludeDeleted = false;
+        }
+
         var result = await _courseService.GetPagedListAsync(query, cancellationToken);
         if (result.IsFailure) return BadRequest(new { Error = result.Error });
         return Ok(result.Value);
@@ -131,18 +138,32 @@ public class CoursesController : ControllerBase
         return Ok(result.Value);
     }
 
-    /// <summary>DELETE /api/courses/{id} — Soft-delete a course</summary>
-    [HttpDelete("{id}")]
+    /// <summary>POST /api/courses/{id}/archive — Archive a course (sets DeleteFlag = 1)</summary>
+    [HttpPost("{id}/archive")]
     [Authorize(Policy = "Permission:Course.Delete")]
-    public async Task<IActionResult> DeleteCourse(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> ArchiveCourse(int id, CancellationToken cancellationToken)
     {
-        var result = await _courseService.SoftDeleteAsync(id, cancellationToken);
+        var result = await _courseService.ArchiveCourseAsync(id, cancellationToken);
         if (result.IsFailure)
         {
             if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });
             return BadRequest(new { Error = result.Error });
         }
-        return Ok(new { Message = "Course deleted successfully." });
+        return Ok(new { Message = "Course archived successfully." });
+    }
+
+    /// <summary>POST /api/courses/{id}/restore — Restore a course (sets DeleteFlag = 0)</summary>
+    [HttpPost("{id}/restore")]
+    [Authorize(Policy = "Permission:Course.Update")]
+    public async Task<IActionResult> RestoreCourse(int id, CancellationToken cancellationToken)
+    {
+        var result = await _courseService.RestoreCourseAsync(id, cancellationToken);
+        if (result.IsFailure)
+        {
+            if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });
+            return BadRequest(new { Error = result.Error });
+        }
+        return Ok(new { Message = "Course restored successfully." });
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

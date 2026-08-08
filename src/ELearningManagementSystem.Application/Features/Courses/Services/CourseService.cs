@@ -1,3 +1,7 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Courses.DTOs;
 using ELearningManagementSystem.Application.Interfaces;
@@ -24,9 +28,9 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .AsQueryable();
 
-        if (!query.IncludeDeleted)
+        if (query.IsArchived.HasValue)
         {
-            dbQuery = dbQuery.Where(c => !c.DeleteFlag);
+            dbQuery = dbQuery.Where(c => c.DeleteFlag == query.IsArchived.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
@@ -48,7 +52,8 @@ public class CourseService : ICourseService
                 CategoryId = c.CategoryId,
                 CategoryName = c.Category.CategoryName,
                 Status = c.Status,
-                ThumbnailUrl = c.ThumbnailUrl
+                ThumbnailUrl = c.ThumbnailUrl,
+                DeleteFlag = c.DeleteFlag
             })
             .ToListAsync(cancellationToken);
 
@@ -61,7 +66,7 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.CourseId == courseId, cancellationToken);
 
-        if (course == null || course.DeleteFlag)
+        if (course == null)
             return Result.Failure<CourseDetailResponse>("CourseNotFound");
 
         var response = new CourseDetailResponse
@@ -74,7 +79,8 @@ public class CourseService : ICourseService
             CreatedAt = course.CreatedAt,
             UpdatedAt = course.UpdatedAt,
             CreatedBy = course.CreatedBy,
-            ThumbnailUrl = course.ThumbnailUrl
+            ThumbnailUrl = course.ThumbnailUrl,
+            DeleteFlag = course.DeleteFlag
         };
 
         return Result.Success(response);
@@ -86,6 +92,14 @@ public class CourseService : ICourseService
             return Result.Failure<CourseDetailResponse>("InvalidCourseTitle");
 
         var userId = _currentUserService.UserId ?? throw new UnauthorizedAccessException();
+
+        // Optional check: cannot create course with archived category
+        var category = await _dbContext.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.CategoryId == request.CategoryId, cancellationToken);
+
+        if (category == null || category.DeleteFlag)
+            return Result.Failure<CourseDetailResponse>("CategoryNotFound");
 
         var course = new Course
         {
@@ -114,6 +128,14 @@ public class CourseService : ICourseService
         if (course == null || course.DeleteFlag)
             return Result.Failure<CourseDetailResponse>("CourseNotFound");
 
+        // Optional check: cannot update course with archived category
+        var category = await _dbContext.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.CategoryId == request.CategoryId, cancellationToken);
+
+        if (category == null || category.DeleteFlag)
+            return Result.Failure<CourseDetailResponse>("CategoryNotFound");
+
         course.Title = request.Title.Trim();
         course.Description = request.Description?.Trim();
         course.CategoryId = request.CategoryId;
@@ -133,13 +155,34 @@ public class CourseService : ICourseService
         return await GetByIdAsync(course.CourseId, cancellationToken);
     }
 
-    public async Task<Result<bool>> SoftDeleteAsync(int courseId, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> ArchiveCourseAsync(int courseId, CancellationToken cancellationToken = default)
     {
-        var course = await _dbContext.Courses.FirstOrDefaultAsync(c => c.CourseId == courseId, cancellationToken);
-        if (course == null || course.DeleteFlag)
+        var course = await _dbContext.Courses.FirstOrDefaultAsync(c => c.CourseId == courseId && !c.DeleteFlag, cancellationToken);
+        if (course == null)
             return Result.Failure<bool>("CourseNotFound");
 
         course.DeleteFlag = true;
+        course.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(true);
+    }
+
+    public async Task<Result<bool>> RestoreCourseAsync(int courseId, CancellationToken cancellationToken = default)
+    {
+        var course = await _dbContext.Courses
+            .Include(c => c.Category)
+            .FirstOrDefaultAsync(c => c.CourseId == courseId && c.DeleteFlag, cancellationToken);
+
+        if (course == null)
+            return Result.Failure<bool>("CourseNotFound");
+
+        // Business Rule: If restoring a Course references an archived Category, do not silently restore
+        if (course.Category.DeleteFlag)
+            return Result.Failure<bool>("CannotRestoreArchivedCategory");
+
+        course.DeleteFlag = false;
         course.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);

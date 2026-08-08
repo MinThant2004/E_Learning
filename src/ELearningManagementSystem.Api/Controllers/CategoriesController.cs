@@ -18,12 +18,12 @@ public class CategoriesController : ControllerBase
         _categoryService = categoryService;
     }
 
-    /// <summary>GET /api/categories — Fetch active categories</summary>
+    /// <summary>GET /api/categories — Fetch categories with optional status filtering</summary>
     [HttpGet]
     [Authorize(Policy = "Permission:Category.Read")]
-    public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetCategories([FromQuery] bool? isArchived, CancellationToken cancellationToken)
     {
-        var result = await _categoryService.GetAllActiveAsync(cancellationToken);
+        var result = await _categoryService.GetCategoriesAsync(isArchived, cancellationToken);
         if (result.IsFailure) return BadRequest(new { Error = result.Error });
         return Ok(result.Value);
     }
@@ -62,17 +62,31 @@ public class CategoriesController : ControllerBase
         return Ok(result.Value);
     }
 
-    /// <summary>DELETE /api/categories/{id} — Soft-delete a category</summary>
-    [HttpDelete("{id}")]
+    /// <summary>POST /api/categories/{id}/archive — Archive a category (sets DeleteFlag = 1)</summary>
+    [HttpPost("{id}/archive")]
     [Authorize(Policy = "Permission:Category.Delete")]
-    public async Task<IActionResult> DeleteCategory(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> ArchiveCategory(int id, CancellationToken cancellationToken)
     {
-        var result = await _categoryService.SoftDeleteAsync(id, cancellationToken);
+        var result = await _categoryService.ArchiveCategoryAsync(id, cancellationToken);
         if (result.IsFailure)
         {
             if (result.Error == "CategoryNotFound") return NotFound(new { Error = result.Error });
             return BadRequest(new { Error = result.Error });
         }
-        return Ok(new { Message = "Category deleted successfully." });
+        return Ok(new { Message = "Category archived successfully." });
+    }
+
+    /// <summary>POST /api/categories/{id}/restore — Restore a category (sets DeleteFlag = 0)</summary>
+    [HttpPost("{id}/restore")]
+    [Authorize(Policy = "Permission:Category.Update")]
+    public async Task<IActionResult> RestoreCategory(int id, CancellationToken cancellationToken)
+    {
+        var result = await _categoryService.RestoreCategoryAsync(id, cancellationToken);
+        if (result.IsFailure)
+        {
+            if (result.Error == "CategoryNotFound") return NotFound(new { Error = result.Error });
+            return BadRequest(new { Error = result.Error });
+        }
+        return Ok(new { Message = "Category restored successfully." });
     }
 }

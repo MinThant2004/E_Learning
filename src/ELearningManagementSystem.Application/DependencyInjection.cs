@@ -23,6 +23,12 @@ public static class DependencyInjection
         // Category Services
         services.AddScoped<ELearningManagementSystem.Application.Features.Categories.Services.ICategoryService, ELearningManagementSystem.Application.Features.Categories.Services.CategoryService>();
 
+        // Lesson Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.Lessons.Services.ILessonService, ELearningManagementSystem.Application.Features.Lessons.Services.LessonService>();
+
+        // Enrollment Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.Enrollments.Services.IEnrollmentService, ELearningManagementSystem.Application.Features.Enrollments.Services.EnrollmentService>();
+
         return services;
     }
 }

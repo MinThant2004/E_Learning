@@ -14,9 +14,14 @@ public class CategoryApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<IEnumerable<CategoryResponse>?> GetCategoriesAsync()
+    public async Task<IEnumerable<CategoryResponse>?> GetCategoriesAsync(bool? isArchived = false)
     {
-        return await _httpClient.GetFromJsonAsync<IEnumerable<CategoryResponse>>("api/categories");
+        var url = "api/categories";
+        if (isArchived.HasValue)
+        {
+            url += $"?isArchived={isArchived.Value.ToString().ToLower()}";
+        }
+        return await _httpClient.GetFromJsonAsync<IEnumerable<CategoryResponse>>(url);
     }
 
     public async Task<CategoryResponse?> GetCategoryAsync(int id)
@@ -34,9 +39,14 @@ public class CategoryApiClient
         return await _httpClient.PutAsJsonAsync($"api/categories/{id}", request);
     }
 
-    public async Task<HttpResponseMessage> DeleteCategoryAsync(int id)
+    public async Task<HttpResponseMessage> ArchiveCategoryAsync(int id)
     {
-        return await _httpClient.DeleteAsync($"api/categories/{id}");
+        return await _httpClient.PostAsync($"api/categories/{id}/archive", null);
+    }
+
+    public async Task<HttpResponseMessage> RestoreCategoryAsync(int id)
+    {
+        return await _httpClient.PostAsync($"api/categories/{id}/restore", null);
     }
 }
 
@@ -46,6 +56,7 @@ public class CategoryResponse
     public string CategoryName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public System.DateTime CreatedAt { get; set; }
+    public bool DeleteFlag { get; set; }
 }
 
 public class CreateCategoryRequest

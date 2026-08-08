@@ -20,18 +20,24 @@ public class CategoryService : ICategoryService
         _context = context;
     }
 
-    public async Task<Result<IEnumerable<CategoryResponse>>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<IEnumerable<CategoryResponse>>> GetCategoriesAsync(bool? isArchived = false, CancellationToken cancellationToken = default)
     {
-        var categories = await _context.Categories
-            .AsNoTracking()
-            .Where(c => !c.DeleteFlag)
+        IQueryable<Category> query = _context.Categories.AsNoTracking();
+
+        if (isArchived.HasValue)
+        {
+            query = query.Where(c => c.DeleteFlag == isArchived.Value);
+        }
+
+        var categories = await query
             .OrderByDescending(c => c.CreatedAt)
             .Select(c => new CategoryResponse
             {
                 CategoryId = c.CategoryId,
                 CategoryName = c.CategoryName,
                 Description = c.Description,
-                CreatedAt = c.CreatedAt
+                CreatedAt = c.CreatedAt,
+                DeleteFlag = c.DeleteFlag
             })
             .ToListAsync(cancellationToken);
 
@@ -42,7 +48,7 @@ public class CategoryService : ICategoryService
     {
         var category = await _context.Categories
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.CategoryId == id && !c.DeleteFlag, cancellationToken);
+            .FirstOrDefaultAsync(c => c.CategoryId == id, cancellationToken);
 
         if (category == null)
             return Result.Failure<CategoryResponse>("CategoryNotFound");
@@ -52,7 +58,8 @@ public class CategoryService : ICategoryService
             CategoryId = category.CategoryId,
             CategoryName = category.CategoryName,
             Description = category.Description,
-            CreatedAt = category.CreatedAt
+            CreatedAt = category.CreatedAt,
+            DeleteFlag = category.DeleteFlag
         };
 
         return Result.Success(response);
@@ -115,7 +122,7 @@ public class CategoryService : ICategoryService
         return await GetByIdAsync(category.CategoryId, cancellationToken);
     }
 
-    public async Task<Result<bool>> SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> ArchiveCategoryAsync(int id, CancellationToken cancellationToken = default)
     {
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => c.CategoryId == id && !c.DeleteFlag, cancellationToken);
@@ -131,6 +138,22 @@ public class CategoryService : ICategoryService
             return Result.Failure<bool>("CategoryInUse");
 
         category.DeleteFlag = true;
+        category.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(true);
+    }
+
+    public async Task<Result<bool>> RestoreCategoryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(c => c.CategoryId == id && c.DeleteFlag, cancellationToken);
+
+        if (category == null)
+            return Result.Failure<bool>("CategoryNotFound");
+
+        category.DeleteFlag = false;
         category.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

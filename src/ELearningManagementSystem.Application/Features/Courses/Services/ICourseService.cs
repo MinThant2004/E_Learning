@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Courses.DTOs;
 
@@ -9,5 +11,6 @@ public interface ICourseService
     Task<Result<CourseDetailResponse>> GetByIdAsync(int courseId, CancellationToken cancellationToken = default);
     Task<Result<CourseDetailResponse>> CreateAsync(CreateCourseRequest request, CancellationToken cancellationToken = default);
     Task<Result<CourseDetailResponse>> UpdateAsync(int courseId, UpdateCourseRequest request, CancellationToken cancellationToken = default);
-    Task<Result<bool>> SoftDeleteAsync(int courseId, CancellationToken cancellationToken = default);
+    Task<Result<bool>> ArchiveCourseAsync(int courseId, CancellationToken cancellationToken = default);
+    Task<Result<bool>> RestoreCourseAsync(int courseId, CancellationToken cancellationToken = default);
 }
