@@ -5,6 +5,7 @@
 @using ELearningManagementSystem.App.Services
 @inject CourseApiClient CourseClient
 @inject NavigationManager NavManager
+@inject HttpClient Http
 
 <PageTitle>Course Catalog</PageTitle>
 
@@ -56,8 +57,12 @@
             {
                 <div class="bg-white overflow-hidden shadow-sm hover:shadow-xl rounded-2xl flex flex-col cursor-pointer transition-all duration-300 transform hover:-translate-y-2 border border-slate-100 group" @onclick="() => NavigateToCourse(course.CourseId)">
                     
-                    <!-- Decorative Header Image Placeholder -->
+                    <!-- Decorative Header Image or Course Thumbnail -->
                     <div class="h-40 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 relative overflow-hidden">
+                        @if (!string.IsNullOrEmpty(course.ThumbnailUrl))
+                        {
+                            <img src="@($"{Http.BaseAddress?.ToString().TrimEnd('/')}{course.ThumbnailUrl}")" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        }
                         <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-300"></div>
                         <div class="absolute bottom-4 left-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/30 text-xs font-semibold text-white tracking-wide uppercase">
                             Course

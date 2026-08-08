@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
+using System.Threading.Tasks;
 
 namespace ELearningManagementSystem.App.Services;
 
@@ -27,12 +31,39 @@ public class CourseApiClient
 
     public async Task<HttpResponseMessage> CreateCourseAsync(CreateCourseRequest request)
     {
-        return await _httpClient.PostAsJsonAsync("api/courses", request);
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(request.Title), "Title");
+        if (request.Description != null)
+            content.Add(new StringContent(request.Description), "Description");
+        content.Add(new StringContent(request.CategoryId.ToString()), "CategoryId");
+
+        if (request.ThumbnailBytes != null)
+        {
+            var fileContent = new ByteArrayContent(request.ThumbnailBytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.ThumbnailMimeType ?? "image/jpeg");
+            content.Add(fileContent, "Thumbnail", request.ThumbnailFileName ?? "thumbnail.jpg");
+        }
+
+        return await _httpClient.PostAsync("api/courses", content);
     }
 
     public async Task<HttpResponseMessage> UpdateCourseAsync(int id, UpdateCourseRequest request)
     {
-        return await _httpClient.PutAsJsonAsync($"api/courses/{id}", request);
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(request.Title), "Title");
+        if (request.Description != null)
+            content.Add(new StringContent(request.Description), "Description");
+        content.Add(new StringContent(request.CategoryId.ToString()), "CategoryId");
+        content.Add(new StringContent(request.RemoveThumbnail.ToString().ToLower()), "RemoveThumbnail");
+
+        if (request.ThumbnailBytes != null)
+        {
+            var fileContent = new ByteArrayContent(request.ThumbnailBytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.ThumbnailMimeType ?? "image/jpeg");
+            content.Add(fileContent, "Thumbnail", request.ThumbnailFileName ?? "thumbnail.jpg");
+        }
+
+        return await _httpClient.PutAsync($"api/courses/{id}", content);
     }
 
     public async Task<HttpResponseMessage> DeleteCourseAsync(int id)
@@ -56,7 +87,9 @@ public class CourseSummaryResponse
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
     public bool Status { get; set; }
+    public string? ThumbnailUrl { get; set; }
 }
 
 public class CourseDetailResponse
@@ -77,6 +110,9 @@ public class CreateCourseRequest
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int CategoryId { get; set; }
+    public byte[]? ThumbnailBytes { get; set; }
+    public string? ThumbnailFileName { get; set; }
+    public string? ThumbnailMimeType { get; set; }
 }
 
 public class UpdateCourseRequest
@@ -84,4 +120,8 @@ public class UpdateCourseRequest
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int CategoryId { get; set; }
+    public byte[]? ThumbnailBytes { get; set; }
+    public string? ThumbnailFileName { get; set; }
+    public string? ThumbnailMimeType { get; set; }
+    public bool RemoveThumbnail { get; set; }
 }

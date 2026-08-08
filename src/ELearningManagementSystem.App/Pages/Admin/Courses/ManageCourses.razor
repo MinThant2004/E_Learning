@@ -6,6 +6,7 @@
 @attribute [Authorize(Policy = "Permission:Course.Read")]
 @inject CourseApiClient CourseClient
 @inject CategoryApiClient CategoryClient
+@inject HttpClient Http
 @inject IJSRuntime JS
 
 <PageTitle>Manage Courses</PageTitle>
@@ -106,6 +107,43 @@
                             }
                         </div>
                     </div>
+
+                    <!-- File Upload Input -->
+                    <div class="sm:col-span-6">
+                        <label class="block text-sm font-medium text-slate-700 font-semibold mb-1">Course Thumbnail</label>
+                        <div class="mt-1 flex items-center space-x-6">
+                            <div class="flex-shrink-0">
+                                @if (!string.IsNullOrEmpty(ThumbnailPreviewUrl))
+                                {
+                                    <img src="@ThumbnailPreviewUrl" class="h-16 w-24 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                                }
+                                else if (!string.IsNullOrEmpty(ExistingThumbnailUrl))
+                                {
+                                    <img src="@($"{Http.BaseAddress?.ToString().TrimEnd('/')}{ExistingThumbnailUrl}")" class="h-16 w-24 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                                }
+                                else
+                                {
+                                    <div class="h-16 w-24 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-semibold text-xs">
+                                        No Image
+                                    </div>
+                                }
+                            </div>
+                            <div class="flex flex-col space-y-2">
+                                <InputFile OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.webp" class="text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors cursor-pointer" />
+                                <span class="text-xs text-slate-500">Allowed formats: JPG, PNG, WebP. Max size: 5 MB.</span>
+                                
+                                @if (!string.IsNullOrEmpty(ThumbnailPreviewUrl) || !string.IsNullOrEmpty(ExistingThumbnailUrl))
+                                {
+                                    <button type="button" @onclick="RemoveImage" class="inline-flex items-center text-xs text-red-600 hover:text-red-800 font-medium transition-colors">
+                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        Remove Image
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
@@ -136,6 +174,7 @@
                         <th scope="col" class="py-4 pl-4 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pl-6 w-16">No.</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Category</th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Image</th>
                         <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
                             <span class="sr-only">Actions</span>
                         </th>
@@ -145,7 +184,7 @@
                     @if (IsLoading)
                     {
                         <tr>
-                            <td colspan="4" class="px-6 py-12">
+                            <td colspan="5" class="px-6 py-12">
                                 <div class="flex justify-center">
                                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                 </div>
@@ -155,7 +194,7 @@
                     else if (Courses == null || !Courses.Any())
                     {
                         <tr>
-                            <td colspan="4" class="px-3 py-8">
+                            <td colspan="5" class="px-3 py-8">
                                 <EmptyState Title="No courses found" Description="Get started by creating a new course.">
                                     <Icon>
                                         <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -174,11 +213,25 @@
                             var rowNum = (CurrentPage - 1) * PageSize + i + 1;
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">@rowNum</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-medium">@course.Title</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-semibold">
+                                    @course.Title
+                                </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                        @GetCategoryName(course.CategoryId)
+                                        @(string.IsNullOrEmpty(course.CategoryName) ? GetCategoryName(course.CategoryId) : course.CategoryName)
                                     </span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                                    @if (!string.IsNullOrEmpty(course.ThumbnailUrl))
+                                    {
+                                        <img src="@($"{Http.BaseAddress?.ToString().TrimEnd('/')}{course.ThumbnailUrl}")" class="h-10 w-16 object-cover rounded-lg border border-slate-200 shadow-sm" />
+                                    }
+                                    else
+                                    {
+                                        <div class="h-10 w-16 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-semibold text-[10px] select-none">
+                                            No Image
+                                        </div>
+                                    }
                                 </td>
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                     <div class="flex items-center justify-end space-x-3">
@@ -231,6 +284,14 @@
 
     private int CurrentPage = 1;
     private int PageSize = 10;
+
+    // File Upload Local State
+    private string? ThumbnailPreviewUrl;
+    private string? ExistingThumbnailUrl;
+    private byte[]? UploadedFileBytes;
+    private string? UploadedFileName;
+    private string? UploadedFileMimeType;
+    private bool ShouldRemoveThumbnail = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -293,6 +354,12 @@
     {
         EditingCourseId = null;
         CurrentCourse = new CreateCourseRequest { CategoryId = 0 };
+        ThumbnailPreviewUrl = null;
+        ExistingThumbnailUrl = null;
+        UploadedFileBytes = null;
+        UploadedFileName = null;
+        UploadedFileMimeType = null;
+        ShouldRemoveThumbnail = false;
         IsFormVisible = true;
         ErrorMessage = null;
     }
@@ -306,6 +373,12 @@
             Description = course.Description,
             CategoryId = course.CategoryId
         };
+        ThumbnailPreviewUrl = null;
+        ExistingThumbnailUrl = course.ThumbnailUrl;
+        UploadedFileBytes = null;
+        UploadedFileName = null;
+        UploadedFileMimeType = null;
+        ShouldRemoveThumbnail = false;
         IsFormVisible = true;
         ErrorMessage = null;
     }
@@ -313,6 +386,70 @@
     private void HideForm()
     {
         IsFormVisible = false;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        ErrorMessage = null;
+        var file = e.File;
+        if (file == null) return;
+
+        // Size check (5MB)
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            ErrorMessage = "Image file size must be less than 5 MB.";
+            return;
+        }
+
+        // Extension check
+        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        if (!allowed.Contains(extension))
+        {
+            ErrorMessage = "Only .jpg, .jpeg, .png, and .webp images are allowed.";
+            return;
+        }
+
+        // Content type check
+        var allowedMimes = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowedMimes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.";
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            var buffer = new byte[file.Size];
+            await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
+
+            UploadedFileBytes = buffer;
+            UploadedFileName = file.Name;
+            UploadedFileMimeType = file.ContentType;
+            ShouldRemoveThumbnail = false;
+
+            // Preview local file in browser immediately
+            ThumbnailPreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error reading image file: " + ex.Message;
+        }
+    }
+
+    private void RemoveImage()
+    {
+        UploadedFileBytes = null;
+        UploadedFileName = null;
+        UploadedFileMimeType = null;
+        ThumbnailPreviewUrl = null;
+        
+        if (EditingCourseId.HasValue)
+        {
+            ShouldRemoveThumbnail = true;
+            ExistingThumbnailUrl = null;
+        }
     }
 
     private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
@@ -353,12 +490,19 @@
                 {
                     Title = CurrentCourse.Title,
                     Description = CurrentCourse.Description,
-                    CategoryId = CurrentCourse.CategoryId
+                    CategoryId = CurrentCourse.CategoryId,
+                    ThumbnailBytes = UploadedFileBytes,
+                    ThumbnailFileName = UploadedFileName,
+                    ThumbnailMimeType = UploadedFileMimeType,
+                    RemoveThumbnail = ShouldRemoveThumbnail
                 };
                 response = await CourseClient.UpdateCourseAsync(EditingCourseId.Value, updateRequest);
             }
             else
             {
+                CurrentCourse.ThumbnailBytes = UploadedFileBytes;
+                CurrentCourse.ThumbnailFileName = UploadedFileName;
+                CurrentCourse.ThumbnailMimeType = UploadedFileMimeType;
                 response = await CourseClient.CreateCourseAsync(CurrentCourse);
             }
 

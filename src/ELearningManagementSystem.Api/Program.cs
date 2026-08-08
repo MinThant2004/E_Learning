@@ -111,6 +111,7 @@ if (app.Environment.IsDevelopment())
 // Middleware order:  ExceptionHandling → HTTPS → CORS → Auth → Authorization → Controllers
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("BlazorClient");
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,0 +1,350 @@
+@page "/admin/categories"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Category.Read")]
+@inject CategoryApiClient CategoryClient
+@inject IJSRuntime JS
+
+<PageTitle>Manage Categories</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageHeader Title="Manage Categories" Description="Create, edit, and deactivate course categories.">
+        <ActionTemplate>
+            <AuthorizeView Policy="Permission:Category.Create">
+                <Authorized>
+                    <button @onclick="ShowCreateForm" type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors w-full sm:w-auto disabled:opacity-50">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Category
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </ActionTemplate>
+    </PageHeader>
+
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>@ErrorMessage</p>
+                    </div>
+                </div>
+                <div class="ml-auto pl-3">
+                    <div class="-mx-1.5 -my-1.5">
+                        <button @onclick="() => ErrorMessage = null" type="button" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50">
+                            <span class="sr-only">Dismiss</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (IsFormVisible)
+    {
+        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                <h3 class="text-lg leading-6 font-semibold text-slate-900">@(EditingCategoryId.HasValue ? "Edit Category" : "Create New Category")</h3>
+            </div>
+            <div class="px-6 py-6 sm:p-8">
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <label for="name" class="block text-sm font-medium text-slate-700">Category Name <span class="text-red-500">*</span></label>
+                        <div class="mt-1">
+                            <input type="text" id="name" @bind="CurrentCategory.CategoryName" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Software Development" />
+                        </div>
+                    </div>
+                    <div class="sm:col-span-6">
+                        <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
+                        <div class="mt-1">
+                            <textarea id="description" rows="3" @bind="CurrentCategory.Description" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Brief description of courses in this category..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
+                <button type="button" @onclick="HideForm" class="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">Cancel</button>
+                <button type="button" @onclick="SaveCategory" disabled="@IsSaving" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70 transition-colors">
+                    @if (IsSaving)
+                    {
+                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Category</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col" class="py-4 pl-4 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pl-6 w-16">No.</th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Category Name</th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Created At</th>
+                        <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    @if (IsLoading)
+                    {
+                        <tr>
+                            <td colspan="5" class="px-6 py-12">
+                                <div class="flex justify-center">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else if (Categories == null || !Categories.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="px-3 py-8">
+                                <EmptyState Title="No categories found" Description="Get started by creating a new course category.">
+                                    <Icon>
+                                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                    </Icon>
+                                </EmptyState>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @for (int i = 0; i < Categories.Count; i++)
+                        {
+                            var category = Categories[i];
+                            var rowNum = i + 1; // Assuming simple list view without complex server pagination for categories
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">@rowNum</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-semibold">@category.CategoryName</td>
+                                <td class="px-3 py-4 text-sm text-slate-500 max-w-xs truncate" title="@category.Description">@category.Description</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@category.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                    <div class="flex items-center justify-end space-x-3">
+                                        <AuthorizeView Policy="Permission:Category.Update">
+                                            <Authorized>
+                                                <button @onclick="() => ShowEditForm(category)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                    <span class="sr-only">Edit</span>
+                                                </button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                        <AuthorizeView Policy="Permission:Category.Delete">
+                                            <Authorized>
+                                                <button @onclick="() => SoftDeleteCategory(category.CategoryId)" disabled="@(IsSaving || IsDeleting)" class="text-red-500 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50 disabled:opacity-50" title="Delete">
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                    <span class="sr-only">Delete</span>
+                                                </button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<CategoryResponse> Categories = new();
+    
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+    
+    private bool IsFormVisible = false;
+    private bool IsSaving = false;
+    private bool IsDeleting = false;
+    
+    private int? EditingCategoryId;
+    private CreateCategoryRequest CurrentCategory = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            var result = await CategoryClient.GetCategoriesAsync();
+            if (result != null)
+            {
+                Categories = result.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load categories. " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        EditingCategoryId = null;
+        CurrentCategory = new CreateCategoryRequest();
+        IsFormVisible = true;
+        ErrorMessage = null;
+    }
+
+    private void ShowEditForm(CategoryResponse category)
+    {
+        EditingCategoryId = category.CategoryId;
+        CurrentCategory = new CreateCategoryRequest
+        {
+            CategoryName = category.CategoryName,
+            Description = category.Description
+        };
+        IsFormVisible = true;
+        ErrorMessage = null;
+    }
+
+    private void HideForm()
+    {
+        IsFormVisible = false;
+    }
+
+    private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
+    {
+        try
+        {
+            var apiError = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+            if (apiError?.Error != null)
+            {
+                if (apiError.Error == "CategoryAlreadyExists")
+                    return "A category with this name already exists.";
+                if (apiError.Error == "CategoryInUse")
+                    return "This category cannot be deleted because it is currently used by one or more courses.";
+                return apiError.Error;
+            }
+            return $"Server error ({response.StatusCode})";
+        }
+        catch
+        {
+            return $"Server error ({response.StatusCode})";
+        }
+    }
+
+    private async Task SaveCategory()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentCategory.CategoryName))
+        {
+            ErrorMessage = "Category Name is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (EditingCategoryId.HasValue)
+            {
+                var updateRequest = new UpdateCategoryRequest
+                {
+                    CategoryName = CurrentCategory.CategoryName,
+                    Description = CurrentCategory.Description
+                };
+                response = await CategoryClient.UpdateCategoryAsync(EditingCategoryId.Value, updateRequest);
+            }
+            else
+            {
+                response = await CategoryClient.CreateCategoryAsync(CurrentCategory);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                IsFormVisible = false;
+                await LoadCategories();
+            }
+            else
+            {
+                ErrorMessage = await GetApiErrorMessage(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error saving category: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task SoftDeleteCategory(int id)
+    {
+        if (IsDeleting) return;
+
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this category?"))
+        {
+            IsDeleting = true;
+            ErrorMessage = null;
+            try
+            {
+                var response = await CategoryClient.DeleteCategoryAsync(id);
+                if (response.IsSuccessStatusCode)
+                {
+                    await LoadCategories();
+                }
+                else
+                {
+                    ErrorMessage = await GetApiErrorMessage(response);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = "Error deleting category: " + ex.Message;
+            }
+            finally
+            {
+                IsDeleting = false;
+            }
+        }
+    }
+
+    private class ApiErrorResponse
+    {
+        public string? Error { get; set; }
+    }
+}

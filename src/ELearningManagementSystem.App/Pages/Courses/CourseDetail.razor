@@ -4,6 +4,7 @@
 @using ELearningManagementSystem.App.Components.UI
 @inject CourseApiClient CourseClient
 @inject NavigationManager NavManager
+@inject HttpClient Http
 
 <PageTitle>Course Details - @(Course?.Title ?? "Loading...")</PageTitle>
 
@@ -43,7 +44,11 @@
     {
         <div class="bg-white shadow-xl shadow-slate-200/50 overflow-hidden sm:rounded-3xl border border-slate-100">
             <!-- Hero Image Header -->
-            <div class="h-64 sm:h-80 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 relative">
+            <div class="h-64 sm:h-80 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden">
+                @if (!string.IsNullOrEmpty(Course.ThumbnailUrl))
+                {
+                    <img src="@($"{Http.BaseAddress?.ToString().TrimEnd('/')}{Course.ThumbnailUrl}")" class="absolute inset-0 w-full h-full object-cover" />
+                }
                 <div class="absolute inset-0 bg-black/40"></div>
                 <div class="absolute bottom-0 left-0 right-0 p-6 sm:p-10 bg-gradient-to-t from-black/80 to-transparent text-white">
                     <div class="flex items-center space-x-3 mb-3">

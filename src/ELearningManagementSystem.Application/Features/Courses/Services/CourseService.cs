@@ -46,6 +46,7 @@ public class CourseService : ICourseService
                 Title = c.Title,
                 Description = c.Description,
                 CategoryId = c.CategoryId,
+                CategoryName = c.Category.CategoryName,
                 Status = c.Status
             })
             .ToListAsync(cancellationToken);
@@ -90,6 +91,7 @@ public class CourseService : ICourseService
             Title = request.Title.Trim(),
             Description = request.Description?.Trim(),
             CategoryId = request.CategoryId,
+            ThumbnailUrl = request.ThumbnailUrl,
             Status = true,
             DeleteFlag = false,
             CreatedAt = DateTime.UtcNow,
@@ -115,6 +117,15 @@ public class CourseService : ICourseService
         course.Description = request.Description?.Trim();
         course.CategoryId = request.CategoryId;
         course.UpdatedAt = DateTime.UtcNow;
+
+        if (request.RemoveThumbnail)
+        {
+            course.ThumbnailUrl = null;
+        }
+        else if (request.ThumbnailUrl != null)
+        {
+            course.ThumbnailUrl = request.ThumbnailUrl;
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
