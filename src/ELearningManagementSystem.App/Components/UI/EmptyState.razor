@@ -1,0 +1,37 @@
+<div class="text-center py-16 px-4 sm:px-6 lg:px-8 bg-white shadow-sm rounded-2xl border border-slate-100">
+    <div class="mx-auto h-24 w-24 text-slate-200 mb-4 bg-slate-50 rounded-full flex items-center justify-center shadow-inner">
+        @if (Icon != null)
+        {
+            @Icon
+        }
+        else
+        {
+            <svg class="h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+        }
+    </div>
+    <h3 class="mt-2 text-lg font-semibold text-slate-900 tracking-tight">@Title</h3>
+    <p class="mt-1 text-sm text-slate-500 max-w-sm mx-auto">@Description</p>
+    
+    @if (ActionTemplate != null)
+    {
+        <div class="mt-6">
+            @ActionTemplate
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "No items found";
+
+    [Parameter]
+    public string Description { get; set; } = "There is currently no data to display in this section.";
+
+    [Parameter]
+    public RenderFragment? Icon { get; set; }
+
+    [Parameter]
+    public RenderFragment? ActionTemplate { get; set; }
+}

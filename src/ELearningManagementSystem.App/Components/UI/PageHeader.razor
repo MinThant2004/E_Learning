@@ -1,0 +1,26 @@
+<div class="sm:flex sm:items-center sm:justify-between mb-8 bg-gradient-to-r from-slate-900 to-indigo-900 p-8 rounded-3xl shadow-xl shadow-indigo-900/10">
+    <div>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="mt-2 text-sm text-indigo-100/80 max-w-2xl">@Description</p>
+        }
+    </div>
+    @if (ActionTemplate != null)
+    {
+        <div class="mt-4 sm:mt-0 flex">
+            @ActionTemplate
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? ActionTemplate { get; set; }
+}

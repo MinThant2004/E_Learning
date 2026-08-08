@@ -1,0 +1,119 @@
+@page "/courses/{Id:int}"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@inject CourseApiClient CourseClient
+@inject NavigationManager NavManager
+
+<PageTitle>Course Details - @(Course?.Title ?? "Loading...")</PageTitle>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <button @onclick="GoBack" class="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
+        <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+        </svg>
+        Back to Catalog
+    </button>
+
+    @if (IsLoading)
+    {
+        <SkeletonCard />
+        <div class="mt-8 space-y-4 animate-pulse">
+            <div class="h-4 bg-slate-200 rounded w-full"></div>
+            <div class="h-4 bg-slate-200 rounded w-5/6"></div>
+            <div class="h-4 bg-slate-200 rounded w-4/6"></div>
+        </div>
+    }
+    else if (HasError || Course == null)
+    {
+        <EmptyState Title="Course Not Found" Description="The requested course is unavailable or has been deleted.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </Icon>
+            <ActionTemplate>
+                <button @onclick="GoBack" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                    Return to Catalog
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="bg-white shadow-xl shadow-slate-200/50 overflow-hidden sm:rounded-3xl border border-slate-100">
+            <!-- Hero Image Header -->
+            <div class="h-64 sm:h-80 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 relative">
+                <div class="absolute inset-0 bg-black/40"></div>
+                <div class="absolute bottom-0 left-0 right-0 p-6 sm:p-10 bg-gradient-to-t from-black/80 to-transparent text-white">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <span class="px-3 py-1 text-xs font-semibold bg-indigo-500/80 backdrop-blur-md text-white rounded-full uppercase tracking-wider">
+                            Course
+                        </span>
+                        <span class="text-indigo-200 text-sm flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            @Course.CreatedAt.ToString("MMM dd, yyyy")
+                        </span>
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2">@Course.Title</h1>
+                </div>
+            </div>
+
+            <div class="p-6 sm:p-10">
+                <div class="prose prose-slate max-w-none mb-10">
+                    <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        About this course
+                    </h3>
+                    <p class="text-slate-600 leading-relaxed whitespace-pre-wrap">@(string.IsNullOrEmpty(Course.Description) ? "No description available." : Course.Description)</p>
+                </div>
+
+                <div class="bg-slate-50 rounded-2xl p-6 sm:flex sm:items-center sm:justify-between border border-slate-100">
+                    <div class="mb-4 sm:mb-0">
+                        <h4 class="text-lg font-semibold text-slate-900">Ready to start learning?</h4>
+                        <p class="text-slate-500 text-sm mt-1">Enroll now to access all course materials and assignments.</p>
+                    </div>
+                    <button disabled class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent rounded-full shadow-sm text-base font-medium text-white bg-indigo-600 opacity-75 cursor-not-allowed transition-all">
+                        Enroll Now (Coming Soon)
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private CourseDetailResponse? Course;
+    private bool IsLoading = true;
+    private bool HasError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        HasError = false;
+        try
+        {
+            Course = await CourseClient.GetCourseAsync(Id);
+        }
+        catch (Exception)
+        {
+            HasError = true;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/courses");
+    }
+}
