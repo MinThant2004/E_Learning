@@ -35,15 +35,7 @@ public class LessonProgressApiClient
         }
         else
         {
-            try 
-            {
-                var errorObj = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-                result.ErrorMessage = errorObj?.Error;
-            }
-            catch 
-            {
-                result.ErrorMessage = "Unknown error";
-            }
+            result.ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
         }
         return result;
     }

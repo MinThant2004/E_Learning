@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -23,7 +22,7 @@ namespace ELearningManagementSystem.App.Services
                 return (true, data, null);
             }
             
-            var error = await response.Content.ReadAsStringAsync();
+            var error = await ApiResponseHelper.GetErrorMessageAsync(response);
             return (false, null, error);
         }
     }

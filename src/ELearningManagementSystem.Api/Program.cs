@@ -6,6 +6,7 @@ using ELearningManagementSystem.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,7 +25,19 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 });
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToArray();
+
+            return new BadRequestObjectResult(new { Errors = errors });
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger with JWT Bearer support
@@ -115,8 +128,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Middleware order:  ExceptionHandling → HTTPS → CORS → Auth → Authorization → Controllers
+// Middleware order:  ExceptionHandling → Serilog → HTTPS → CORS → Auth → Authorization → Controllers
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("BlazorClient");

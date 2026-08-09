@@ -20,7 +20,7 @@ public class LessonsController : ControllerBase
 
     /// <summary>GET /api/courses/{courseId}/lessons — Get lessons for a course with optional status filter</summary>
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Policy = "Permission:Lesson.Read")]
     public async Task<IActionResult> GetLessons(int courseId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? searchTerm = null, [FromQuery] bool? isArchived = null, CancellationToken cancellationToken = default)
     {
         var hasLessonReadPermission = User.Claims.Any(c => c.Type == "permission" && c.Value == "Lesson.Read");
@@ -49,7 +49,7 @@ public class LessonsController : ControllerBase
 
     /// <summary>GET /api/courses/{courseId}/lessons/{lessonId} — Get lesson detail</summary>
     [HttpGet("{lessonId}")]
-    [AllowAnonymous]
+    [Authorize(Policy = "Permission:Lesson.Read")]
     public async Task<IActionResult> GetLesson(int courseId, int lessonId, CancellationToken cancellationToken)
     {
         var result = await _lessonService.GetLessonByIdAsync(courseId, lessonId, cancellationToken);

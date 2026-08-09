@@ -19,17 +19,18 @@
                 <!-- Desktop Navigation Links -->
                 <div class="hidden md:block ml-10">
                     <div class="flex items-baseline space-x-1">
-                        <NavLink href="/" Match="NavLinkMatch.All" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Dashboard</NavLink>
-                        <NavLink href="/courses" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Courses</NavLink>
-                        
                         <AuthorizeView>
                             <Authorized>
-                                <NavLink href="/student/dashboard" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">My Dashboard</NavLink>
-                                <NavLink href="/my-courses" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">My Courses</NavLink>
+                                <NavLink href="/dashboard" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Dashboard</NavLink>
+                            </Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Policy="Permission:Course.Read" Context="coursesContext">
+                            <Authorized>
+                                <NavLink href="/courses" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Courses</NavLink>
                             </Authorized>
                         </AuthorizeView>
                         
-                        <AuthorizeView Policy="Permission:Course.Read" Context="courseAdminContext">
+                        <AuthorizeView Policy="Permission:Course.Update" Context="courseAdminContext">
                             <Authorized>
                                 <NavLink href="/admin/courses" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Manage Courses</NavLink>
                             </Authorized>
@@ -37,6 +38,22 @@
                         <AuthorizeView Policy="Permission:Category.Read" Context="categoryAdminContext">
                             <Authorized>
                                 <NavLink href="/admin/categories" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Manage Categories</NavLink>
+                            </Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Policy="Permission:User.Read" Context="userAdminContext">
+                            <Authorized>
+                                <NavLink href="/admin/users" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Manage Users</NavLink>
+                            </Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Policy="Permission:Role.Read" Context="roleAdminContext">
+                            <Authorized>
+                                <NavLink href="/admin/roles" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Manage Roles</NavLink>
+                            </Authorized>
+                        </AuthorizeView>
+                        
+                        <AuthorizeView Policy="Permission:AuditLog.Read" Context="auditAdminContext">
+                            <Authorized>
+                                <NavLink href="/admin/audit-logs" class="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" ActiveClass="text-indigo-600 bg-indigo-50">Audit Logs</NavLink>
                             </Authorized>
                         </AuthorizeView>
                     </div>
@@ -47,17 +64,13 @@
             <div class="flex items-center space-x-4">
                 <AuthorizeView>
                     <Authorized>
-                        <AuthorizeView Roles="Admin" Context="adminContext">
-                            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
-                                Admin
-                            </span>
-                        </AuthorizeView>
+
 
                         <div class="flex items-center space-x-3">
                             <div class="h-8 w-8 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
                                 <span class="text-indigo-700 font-semibold text-sm">@(context.User.Identity?.Name?.FirstOrDefault() ?? 'U')</span>
                             </div>
-                            <span class="hidden sm:block text-sm font-medium text-slate-700">@context.User.Identity?.Name</span>
+                            <a href="/profile" class="hidden sm:block text-sm font-medium text-slate-700 hover:text-indigo-600 transition-colors">Profile</a>
                             
                             <button @onclick="HandleLogout" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" title="Sign out">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

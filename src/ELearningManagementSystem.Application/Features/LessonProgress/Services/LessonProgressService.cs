@@ -2,16 +2,19 @@ using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.LessonProgress.DTOs;
 using ELearningManagementSystem.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.LessonProgress.Services;
 
 public class LessonProgressService : ILessonProgressService
 {
     private readonly IAppDbContext _context;
+    private readonly ILogger<LessonProgressService> _logger;
 
-    public LessonProgressService(IAppDbContext context)
+    public LessonProgressService(IAppDbContext context, ILogger<LessonProgressService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<Result<CourseProgressResponse>> GetCourseProgressAsync(int courseId, int userId, CancellationToken cancellationToken = default)
@@ -81,6 +84,8 @@ public class LessonProgressService : ILessonProgressService
                 progress.CompletedDate = DateTime.UtcNow;
                 await _context.SaveChangesAsync(cancellationToken);
                 
+                _logger.LogInformation("User {UserId} completed Lesson {LessonId} in Course {CourseId} (Progress updated)", userId, lessonId, courseId);
+                
                 return Result.Success(new LessonProgressResponse
                 {
                     LessonId = progress.LessonId,
@@ -100,6 +105,8 @@ public class LessonProgressService : ILessonProgressService
 
         _context.LessonProgresses.Add(progress);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("User {UserId} completed Lesson {LessonId} in Course {CourseId} (Progress created)", userId, lessonId, courseId);
 
         return Result.Success(new LessonProgressResponse
         {

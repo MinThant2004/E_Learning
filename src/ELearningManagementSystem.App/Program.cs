@@ -32,6 +32,8 @@ builder.Services.AddScoped<LessonProgressApiClient>();
 builder.Services.AddScoped<QuizApiClient>();
 builder.Services.AddScoped<QuizAttemptApiClient>();
 builder.Services.AddScoped<StudentDashboardApiClient>();
+builder.Services.AddScoped<AdminDashboardApiClient>();
+builder.Services.AddScoped<AuditLogApiClient>();
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5001";
 
@@ -47,7 +49,10 @@ builder.Services.AddScoped<AuthApiService>(sp =>
         sp.GetRequiredService<CustomAuthStateProvider>()
     ));
 
-// Authenticated HttpClient for API communication
+builder.Services.AddScoped<UserApiClient>();
+builder.Services.AddScoped<RoleApiClient>();
+builder.Services.AddScoped<PermissionApiClient>();
+
 builder.Services.AddHttpClient("ELearningApi", client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);

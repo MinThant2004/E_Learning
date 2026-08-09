@@ -5,6 +5,8 @@ using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ELearningManagementSystem.Application.Features.AuditLogs.Services;
+using ELearningManagementSystem.Application.Features.AuditLogs.DTOs;
 
 namespace ELearningManagementSystem.Application.Features.Authentication.Services;
 
@@ -14,6 +16,7 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthService> _logger;
+    private readonly IAuditLogService _auditLogService;
 
     private const string StudentRoleName = "Student";
 
@@ -21,12 +24,14 @@ public class AuthService : IAuthService
         IAppDbContext context,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IAuditLogService auditLogService)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
+        _auditLogService = auditLogService;
     }
 
     public async Task<Result<RegisterResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
@@ -85,6 +90,14 @@ public class AuthService : IAuthService
             _logger.LogInformation("User registered successfully. UserId={UserId}, Email={Email}, Role=Student",
                 user.UserId, user.Email);
 
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = user.UserId,
+                Action = "Create",
+                TableName = "Users",
+                RecordId = user.UserId
+            }, cancellationToken);
+
             return Result.Success(new RegisterResponse(
                 user.UserId,
                 user.FullName,
@@ -120,18 +133,29 @@ public class AuthService : IAuthService
                 return Result.Failure<AuthResponse>("InvalidCredentials: Invalid email or password.");
             }
 
-            // Load the user's primary role
-            var userRole = await _context.UserRoles
+            // Load all user roles
+            var userRoles = await _context.UserRoles
                 .Include(ur => ur.Role)
-                .FirstOrDefaultAsync(ur => ur.UserId == user.UserId, cancellationToken);
+                .Where(ur => ur.UserId == user.UserId)
+                .Select(ur => ur.Role.RoleName)
+                .ToListAsync(cancellationToken);
 
-            var roleName = userRole?.Role?.RoleName ?? StudentRoleName;
+            if (!userRoles.Any())
+            {
+                userRoles.Add(StudentRoleName);
+            }
+
+            // Determine primary role name for DTO (highest priority)
+            string roleName = StudentRoleName;
+            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
+            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
             var permissions = await GetUserPermissionsAsync(user.UserId, cancellationToken);
 
             // Issue access token
-            var accessToken = _jwtTokenService.GenerateToken(user, roleName, permissions);
+            var accessToken = _jwtTokenService.GenerateToken(user, userRoles, permissions);
             var expiresAt = _jwtTokenService.GetExpiry();
 
             // Issue refresh token
@@ -206,17 +230,28 @@ public class AuthService : IAuthService
             // Revoke old token
             storedToken.RevokedAt = DateTime.UtcNow;
 
-            // Issue new token pair
-            var userRole = await _context.UserRoles
+            // Load all user roles
+            var userRoles = await _context.UserRoles
                 .Include(ur => ur.Role)
-                .FirstOrDefaultAsync(ur => ur.UserId == user.UserId, cancellationToken);
+                .Where(ur => ur.UserId == user.UserId)
+                .Select(ur => ur.Role.RoleName)
+                .ToListAsync(cancellationToken);
 
-            var roleName = userRole?.Role?.RoleName ?? StudentRoleName;
+            if (!userRoles.Any())
+            {
+                userRoles.Add(StudentRoleName);
+            }
+
+            // Determine primary role name for DTO (highest priority)
+            string roleName = StudentRoleName;
+            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
+            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
             var permissions = await GetUserPermissionsAsync(user.UserId, cancellationToken);
 
-            var newAccessToken = _jwtTokenService.GenerateToken(user, roleName, permissions);
+            var newAccessToken = _jwtTokenService.GenerateToken(user, userRoles, permissions);
             var expiresAt = _jwtTokenService.GetExpiry();
 
             var newRefreshTokenValue = GenerateSecureToken();
@@ -265,11 +300,23 @@ public class AuthService : IAuthService
                 return Result.Failure<CurrentUserResponse>("AccountNotFound: User account not found.");
             }
 
-            var userRole = await _context.UserRoles
+            // Load all user roles
+            var userRoles = await _context.UserRoles
                 .Include(ur => ur.Role)
-                .FirstOrDefaultAsync(ur => ur.UserId == userId, cancellationToken);
+                .Where(ur => ur.UserId == userId)
+                .Select(ur => ur.Role.RoleName)
+                .ToListAsync(cancellationToken);
 
-            var roleName = userRole?.Role?.RoleName ?? StudentRoleName;
+            if (!userRoles.Any())
+            {
+                userRoles.Add(StudentRoleName);
+            }
+
+            // Determine primary role name for DTO (highest priority)
+            string roleName = StudentRoleName;
+            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
+            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
             var permissions = await GetUserPermissionsAsync(user.UserId, cancellationToken);

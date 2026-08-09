@@ -6,7 +6,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject EnrollmentApiClient EnrollmentClient
 @inject NavigationManager NavManager
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Permission:Course.Read")]
 
 <PageTitle>My Courses</PageTitle>
 

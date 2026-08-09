@@ -1,5 +1,7 @@
 @page "/courses/{CourseId:int}/lessons/{LessonId:int}"
 
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Lesson.Read")]
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @inject LessonApiClient LessonClient

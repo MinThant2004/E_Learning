@@ -4,7 +4,7 @@
 @using ELearningManagementSystem.App.Components.UI
 @using ELearningManagementSystem.App.Components.Shared
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = "Permission:Quiz.Read")]
+@attribute [Authorize(Policy = "Permission:Quiz.Update")]
 @inject QuizApiClient QuizClient
 @inject CourseApiClient CourseClient
 @inject NavigationManager NavManager
@@ -571,8 +571,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to save quiz.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -601,8 +600,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to archive quiz.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
@@ -636,8 +634,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to restore quiz.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
@@ -755,8 +752,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to save question.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -786,8 +782,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to delete question.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
@@ -825,8 +820,7 @@
             }
             else
             {
-                var errorContent = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorContent?.Error ?? "Failed to add option.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -880,8 +874,7 @@
             }
             else
             {
-                var errorBody = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorBody?.Error ?? "Failed to update option.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -918,8 +911,7 @@
             }
             else
             {
-                var errorBody = await response.Content.ReadFromJsonAsync<ErrorBody>();
-                ErrorMessage = errorBody?.Error ?? "Failed to delete option.";
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -939,9 +931,4 @@
         NavManager.NavigateTo("/admin/courses");
     }
 
-    // ─── Helper ──────────────────────────────────────────────────
-    private class ErrorBody
-    {
-        public string? Error { get; set; }
-    }
 }

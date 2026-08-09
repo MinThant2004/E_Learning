@@ -3,7 +3,7 @@
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = "Permission:Lesson.Read")]
+@attribute [Authorize(Policy = "Permission:Lesson.Update")]
 @implements IDisposable
 @inject LessonApiClient LessonClient
 @using ELearningManagementSystem.App.Components.Shared
@@ -548,15 +548,7 @@
             }
             else
             {
-                try
-                {
-                    var err = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-                    ErrorMessage = err?.Error ?? $"Server error ({response.StatusCode})";
-                }
-                catch
-                {
-                    ErrorMessage = $"Server error ({response.StatusCode})";
-                }
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -588,15 +580,7 @@
             }
             else
             {
-                try
-                {
-                    var err = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-                    ErrorMessage = err?.Error ?? $"Server error ({response.StatusCode})";
-                }
-                catch
-                {
-                    ErrorMessage = $"Server error ({response.StatusCode})";
-                }
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
@@ -614,8 +598,4 @@
         NavManager.NavigateTo("/admin/courses");
     }
 
-    private class ApiErrorResponse
-    {
-        public string? Error { get; set; }
-    }
 }

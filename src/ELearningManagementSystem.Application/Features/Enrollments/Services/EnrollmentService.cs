@@ -8,6 +8,7 @@ using ELearningManagementSystem.Application.Features.Enrollments.DTOs;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.Enrollments.Services;
 
@@ -15,11 +16,13 @@ public class EnrollmentService : IEnrollmentService
 {
     private readonly IAppDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<EnrollmentService> _logger;
 
-    public EnrollmentService(IAppDbContext dbContext, ICurrentUserService currentUserService)
+    public EnrollmentService(IAppDbContext dbContext, ICurrentUserService currentUserService, ILogger<EnrollmentService> logger)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     public async Task<Result<EnrollmentSummaryResponse>> EnrollAsync(int courseId, CancellationToken cancellationToken = default)
@@ -56,6 +59,8 @@ public class EnrollmentService : IEnrollmentService
 
         _dbContext.Enrollments.Add(enrollment);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("User {UserId} enrolled in Course {CourseId} (EnrollmentId={EnrollmentId})", userId, courseId, enrollment.EnrollmentId);
 
         var response = new EnrollmentSummaryResponse
         {

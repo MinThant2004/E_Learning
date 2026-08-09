@@ -1,0 +1,438 @@
+@page "/admin/audit-logs"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:AuditLog.Read")]
+@inject AuditLogApiClient AuditLogClient
+@inject NavigationManager NavManager
+
+<PageTitle>Audit Logs</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
+    <PageHeader Title="Audit Logs" Description="Review administrative history, database actions, and privileged changes.">
+    </PageHeader>
+
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm flex items-start justify-between">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>@ErrorMessage</p>
+                    </div>
+                </div>
+            </div>
+            <button @onclick="() => ErrorMessage = null" type="button" class="text-red-500 hover:text-red-800">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+            </button>
+        </div>
+    }
+
+    <!-- Advanced Filters Bar -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <!-- Search Text -->
+            <div class="flex flex-col">
+                <label for="searchTerm" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Search Text</label>
+                <div class="relative">
+                    <input type="text" id="searchTerm" @bind-value="SearchTerm" @bind-value:event="oninput" @onkeyup="HandleKeyPress" placeholder="Search actor, action, table..." class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors" />
+                    @if (!string.IsNullOrEmpty(SearchTerm))
+                    {
+                        <button @onclick="ClearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Action Filter -->
+            <div class="flex flex-col">
+                <label for="actionFilter" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Action</label>
+                <select id="actionFilter" @bind="ActionFilter" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white">
+                    <option value="">All Actions</option>
+                    <option value="Create">Create</option>
+                    <option value="Update">Update</option>
+                    <option value="Delete">Delete</option>
+                    <option value="Archive">Archive</option>
+                    <option value="Restore">Restore</option>
+                </select>
+            </div>
+
+            <!-- Table Filter -->
+            <div class="flex flex-col">
+                <label for="tableNameFilter" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Target Table</label>
+                <select id="tableNameFilter" @bind="TableNameFilter" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white">
+                    <option value="">All Tables</option>
+                    <option value="Categories">Categories</option>
+                    <option value="Courses">Courses</option>
+                    <option value="Lessons">Lessons</option>
+                    <option value="Quizzes">Quizzes</option>
+                    <option value="Questions">Questions</option>
+                    <option value="Users">Users</option>
+                </select>
+            </div>
+
+            <!-- Start Date -->
+            <div class="flex flex-col">
+                <label for="startDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Start Date</label>
+                <input type="date" id="startDate" @bind="StartDate" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white" />
+            </div>
+
+            <!-- End Date -->
+            <div class="flex flex-col">
+                <label for="endDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">End Date</label>
+                <input type="date" id="endDate" @bind="EndDate" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white" />
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button @onclick="ResetFilters" type="button" class="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none">
+                Reset
+            </button>
+            <button @onclick="LoadAuditLogs" type="button" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors focus:outline-none">
+                Apply Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Paged Audit Logs List -->
+    <div class="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
+        @if (IsLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-20">
+                <svg class="animate-spin h-10 w-10 text-indigo-600 mb-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-sm font-medium text-slate-500">Loading audit history...</span>
+            </div>
+        }
+        else if (PagedResult == null || !PagedResult.Items.Any())
+        {
+            <div class="text-center py-20">
+                <svg class="mx-auto h-12 w-12 text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 class="text-sm font-semibold text-slate-900">No logs found</h3>
+                <p class="mt-1 text-sm text-slate-500">Try adjusting your search criteria or date filters.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Timestamp</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actor</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Module</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Record ID</th>
+                            <th scope="col" class="relative px-6 py-4">
+                                <span class="sr-only">Actions</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        @foreach (var log in PagedResult.Items)
+                        {
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-medium">
+                                    @log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                    <div class="font-semibold text-slate-900">@log.UserFullName</div>
+                                    <div class="text-xs text-slate-500">@log.UserEmail</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold @GetActionBadgeClass(log.Action)">
+                                        @log.Action
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                    @log.TableName
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                                    @log.RecordId
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button @onclick="() => ShowDetail(log)" class="text-indigo-600 hover:text-indigo-900 font-semibold transition-colors">
+                                        Details
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="bg-white px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    <button @onclick="PreviousPage" disabled="@(!CanGoPrevious)" class="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50">
+                        Previous
+                    </button>
+                    <button @onclick="NextPage" disabled="@(!CanGoNext)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50">
+                        Next
+                    </button>
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-slate-700">
+                            Showing page <span class="font-semibold text-slate-900">@CurrentPage</span> of <span class="font-semibold text-slate-900">@PagedResult.TotalPages</span>
+                            (Total: <span class="font-semibold text-slate-900">@PagedResult.TotalCount</span> items)
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button @onclick="PreviousPage" disabled="@(!CanGoPrevious)" class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50">
+                                <span class="sr-only">Previous</span>
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            @for (int i = 1; i <= PagedResult.TotalPages; i++)
+                            {
+                                var pageNum = i;
+                                <button @onclick="() => GoToPage(pageNum)" class="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-semibold @(pageNum == CurrentPage ? "z-10 bg-indigo-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50")">
+                                    @pageNum
+                                </button>
+                            }
+                            <button @onclick="NextPage" disabled="@(!CanGoNext)" class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50">
+                                <span class="sr-only">Next</span>
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Detail Drawer -->
+@if (SelectedLog != null)
+{
+    <div class="relative z-50 animate-in fade-in duration-200" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-500/75 transition-opacity"></div>
+        <div class="fixed inset-0 overflow-hidden">
+            <div class="absolute inset-0 overflow-hidden">
+                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16">
+                    <div class="pointer-events-auto w-screen max-w-md animate-in slide-in-from-right duration-300">
+                        <div class="flex h-full flex-col overflow-y-scroll bg-white shadow-2xl border-l border-slate-200">
+                            <!-- Drawer Header -->
+                            <div class="bg-indigo-700 px-6 py-6 sm:px-8">
+                                <div class="flex items-start justify-between">
+                                    <h2 class="text-xl font-bold text-white" id="slide-over-title">Audit Log Details</h2>
+                                    <div class="ml-3 flex h-7 items-center">
+                                        <button @onclick="CloseDetail" type="button" class="rounded-md text-indigo-200 hover:text-white focus:outline-none">
+                                            <span class="sr-only">Close panel</span>
+                                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-1">
+                                    <p class="text-sm text-indigo-100">Log ID: <span class="font-mono text-white font-bold">@SelectedLog.AuditLogId</span></p>
+                                </div>
+                            </div>
+
+                            <!-- Drawer Body -->
+                            <div class="relative flex-1 py-8 px-6 sm:px-8">
+                                <div class="space-y-6">
+                                    <div>
+                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Timestamp</h3>
+                                        <p class="mt-1 text-sm font-medium text-slate-900">@SelectedLog.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</p>
+                                    </div>
+
+                                    <div>
+                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Actor (UserId: @SelectedLog.UserId)</h3>
+                                        <p class="mt-1 text-sm font-bold text-slate-950">@SelectedLog.UserFullName</p>
+                                        <p class="text-xs text-slate-500">@SelectedLog.UserEmail</p>
+                                    </div>
+
+                                    <div>
+                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ActionPerformed</h3>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1 @GetActionBadgeClass(SelectedLog.Action)">
+                                            @SelectedLog.Action
+                                        </span>
+                                    </div>
+
+                                    <div>
+                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Module / Table</h3>
+                                        <p class="mt-1 text-sm font-medium text-slate-900 font-mono">@SelectedLog.TableName</p>
+                                    </div>
+
+                                    <div>
+                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Record ID</h3>
+                                        <p class="mt-1 text-sm font-mono text-slate-900">@SelectedLog.RecordId</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Drawer Footer -->
+                            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-end">
+                                <button @onclick="CloseDetail" type="button" class="rounded-full border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsLoading { get; set; } = true;
+    private string? ErrorMessage { get; set; }
+    private PagedResult<ClientAuditLogResponse>? PagedResult { get; set; }
+
+    private int CurrentPage { get; set; } = 1;
+    private int PageSize { get; set; } = 10;
+
+    // Filters
+    private string? SearchTerm { get; set; }
+    private string? ActionFilter { get; set; }
+    private string? TableNameFilter { get; set; }
+    private DateTime? StartDate { get; set; }
+    private DateTime? EndDate { get; set; }
+
+    // Detail Panel
+    private ClientAuditLogResponse? SelectedLog { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAuditLogs();
+    }
+
+    private async Task LoadAuditLogs()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            DateTime? finalEndDate = null;
+            if (EndDate.HasValue)
+            {
+                // Align end of day
+                finalEndDate = EndDate.Value.Date.AddDays(1).AddTicks(-1);
+            }
+
+            PagedResult = await AuditLogClient.GetAuditLogsAsync(
+                page: CurrentPage,
+                pageSize: PageSize,
+                searchTerm: SearchTerm,
+                actionFilter: ActionFilter,
+                tableNameFilter: TableNameFilter,
+                startDate: StartDate,
+                endDate: finalEndDate
+            );
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to load audit logs: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ResetFilters()
+    {
+        SearchTerm = null;
+        ActionFilter = null;
+        TableNameFilter = null;
+        StartDate = null;
+        EndDate = null;
+        CurrentPage = 1;
+        await LoadAuditLogs();
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            CurrentPage = 1;
+            await LoadAuditLogs();
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        SearchTerm = null;
+        CurrentPage = 1;
+        await LoadAuditLogs();
+    }
+
+    private void ShowDetail(ClientAuditLogResponse log)
+    {
+        SelectedLog = log;
+    }
+
+    private void CloseDetail()
+    {
+        SelectedLog = null;
+    }
+
+    // Paging
+    private bool CanGoPrevious => CurrentPage > 1;
+    private bool CanGoNext => PagedResult != null && CurrentPage < PagedResult.TotalPages;
+
+    private async Task PreviousPage()
+    {
+        if (CanGoPrevious)
+        {
+            CurrentPage--;
+            await LoadAuditLogs();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (CanGoNext)
+        {
+            CurrentPage++;
+            await LoadAuditLogs();
+        }
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page != CurrentPage && page >= 1 && (PagedResult == null || page <= PagedResult.TotalPages))
+        {
+            CurrentPage = page;
+            await LoadAuditLogs();
+        }
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        return action switch
+        {
+            "Create" => "bg-emerald-50 text-emerald-700 border border-emerald-200",
+            "Update" => "bg-sky-50 text-sky-700 border border-sky-200",
+            "Delete" => "bg-red-50 text-red-700 border border-red-200",
+            "Archive" => "bg-amber-50 text-amber-700 border border-amber-200",
+            "Restore" => "bg-indigo-50 text-indigo-700 border border-indigo-200",
+            _ => "bg-slate-50 text-slate-700 border border-slate-200"
+        };
+    }
+}

@@ -16,6 +16,9 @@ public static class DependencyInjection
         // Authentication & Authorization Services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<ELearningManagementSystem.Application.Features.Permissions.Services.IPermissionManagementService, ELearningManagementSystem.Application.Features.Permissions.Services.PermissionManagementService>();
+        services.AddScoped<ELearningManagementSystem.Application.Features.Roles.Services.IRoleService, ELearningManagementSystem.Application.Features.Roles.Services.RoleService>();
+        services.AddScoped<ELearningManagementSystem.Application.Features.Users.Services.IUserService, ELearningManagementSystem.Application.Features.Users.Services.UserService>();
 
         // Course Services
         services.AddScoped<ELearningManagementSystem.Application.Features.Courses.Services.ICourseService, ELearningManagementSystem.Application.Features.Courses.Services.CourseService>();
@@ -40,6 +43,12 @@ public static class DependencyInjection
 
         // Student Dashboard Services
         services.AddScoped<ELearningManagementSystem.Application.Features.StudentDashboard.Services.IStudentDashboardService, ELearningManagementSystem.Application.Features.StudentDashboard.Services.StudentDashboardService>();
+
+        // Admin Dashboard Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.AdminDashboard.Services.IAdminDashboardService, ELearningManagementSystem.Application.Features.AdminDashboard.Services.AdminDashboardService>();
+
+        // Audit Log Services
+        services.AddScoped<ELearningManagementSystem.Application.Features.AuditLogs.Services.IAuditLogService, ELearningManagementSystem.Application.Features.AuditLogs.Services.AuditLogService>();
 
         return services;
     }

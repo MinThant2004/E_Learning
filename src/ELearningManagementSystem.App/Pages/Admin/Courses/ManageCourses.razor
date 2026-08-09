@@ -3,7 +3,7 @@
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = "Permission:Course.Read")]
+@attribute [Authorize(Policy = "Permission:Course.Update")]
 @implements IDisposable
 @inject CourseApiClient CourseClient
 @inject CategoryApiClient CategoryClient
@@ -270,7 +270,7 @@
                                     <div class="flex items-center justify-end space-x-3">
                                         @if (!course.DeleteFlag)
                                         {
-                                            <AuthorizeView Policy="Permission:Lesson.Read">
+                                            <AuthorizeView Policy="Permission:Lesson.Update">
                                                 <Authorized>
                                                     <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/lessons")' disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-900 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Manage Lessons">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -280,7 +280,7 @@
                                                     </button>
                                                 </Authorized>
                                             </AuthorizeView>
-                                            <AuthorizeView Policy="Permission:Quiz.Read">
+                                            <AuthorizeView Policy="Permission:Quiz.Update">
                                                 <Authorized>
                                                     <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/quizzes")' disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Manage Quiz">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -313,7 +313,7 @@
                                         }
                                         else
                                         {
-                                            <AuthorizeView Policy="Permission:Course.Delete">
+                                            <AuthorizeView Policy="Permission:Course.Update">
                                                 <Authorized>
                                                     <button @onclick="() => OpenArchive(course)" disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-800 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Restore">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -666,15 +666,7 @@
 
     private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
     {
-        try
-        {
-            var apiError = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-            return apiError?.Error ?? $"Server error ({response.StatusCode})";
-        }
-        catch
-        {
-            return $"Server error ({response.StatusCode})";
-        }
+        return await ApiResponseHelper.GetErrorMessageAsync(response);
     }
 
     private async Task SaveCourse()
@@ -770,8 +762,4 @@
         }
     }
 
-    private class ApiErrorResponse
-    {
-        public string? Error { get; set; }
-    }
 }

@@ -1,18 +1,27 @@
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Quizzes.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.Services;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.Quizzes.Services;
 
 public class QuizService : IQuizService
 {
     private readonly IAppDbContext _context;
+    private readonly IAuditLogService _auditLogService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<QuizService> _logger;
 
-    public QuizService(IAppDbContext context)
+    public QuizService(IAppDbContext context, IAuditLogService auditLogService, ICurrentUserService currentUserService, ILogger<QuizService> logger)
     {
         _context = context;
+        _auditLogService = auditLogService;
+        _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     // ─── Quiz CRUD ───────────────────────────────────────────────
@@ -100,6 +109,19 @@ public class QuizService : IQuizService
         _context.Quizzes.Add(quiz);
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Create",
+                TableName = "Quizzes",
+                RecordId = quiz.QuizId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} created Quiz {QuizId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, quiz.QuizId, quiz.CourseId, quiz.Title);
+        }
+
         return await GetQuizByIdAsync(quiz.QuizId, cancellationToken);
     }
 
@@ -123,6 +145,19 @@ public class QuizService : IQuizService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Update",
+                TableName = "Quizzes",
+                RecordId = quiz.QuizId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} updated Quiz {QuizId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, quiz.QuizId, quiz.CourseId, quiz.Title);
+        }
+
         return await GetQuizByIdAsync(quiz.QuizId, cancellationToken);
     }
 
@@ -138,6 +173,19 @@ public class QuizService : IQuizService
         quiz.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Archive",
+                TableName = "Quizzes",
+                RecordId = quiz.QuizId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} archived Quiz {QuizId}", _currentUserService.UserId.Value, quiz.QuizId);
+        }
 
         return Result.Success(true);
     }
@@ -165,6 +213,19 @@ public class QuizService : IQuizService
         quiz.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Restore",
+                TableName = "Quizzes",
+                RecordId = quiz.QuizId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} restored Quiz {QuizId}", _currentUserService.UserId.Value, quiz.QuizId);
+        }
 
         return Result.Success(true);
     }
@@ -230,6 +291,19 @@ public class QuizService : IQuizService
         // Resequence all questions in this quiz
         await ResequenceQuestionsAsync(request.QuizId, cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Create",
+                TableName = "Questions",
+                RecordId = question.QuestionId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} created Question {QuestionId} in Quiz {QuizId}", _currentUserService.UserId.Value, question.QuestionId, question.QuizId);
+        }
+
         return await GetQuestionResponseAsync(question.QuestionId, cancellationToken);
     }
 
@@ -259,6 +333,19 @@ public class QuizService : IQuizService
 
         await ResequenceQuestionsAsync(question.QuizId, cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Update",
+                TableName = "Questions",
+                RecordId = question.QuestionId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} updated Question {QuestionId} in Quiz {QuizId}", _currentUserService.UserId.Value, question.QuestionId, question.QuizId);
+        }
+
         return await GetQuestionResponseAsync(question.QuestionId, cancellationToken);
     }
 
@@ -279,6 +366,19 @@ public class QuizService : IQuizService
         await _context.SaveChangesAsync(cancellationToken);
 
         await ResequenceQuestionsAsync(quizId, cancellationToken);
+
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Delete",
+                TableName = "Questions",
+                RecordId = questionId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} deleted Question {QuestionId}", _currentUserService.UserId.Value, questionId);
+        }
 
         return Result.Success(true);
     }

@@ -26,8 +26,8 @@ public class EnrollmentApiClient
             return (true, data, null);
         }
 
-        var errorObj = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, errorObj?.Error ?? "An unknown error occurred.");
+        var error = await ApiResponseHelper.GetErrorMessageAsync(response);
+        return (false, null, error);
     }
 
     public async Task<IEnumerable<MyCourseResponse>> GetMyEnrollmentsAsync()

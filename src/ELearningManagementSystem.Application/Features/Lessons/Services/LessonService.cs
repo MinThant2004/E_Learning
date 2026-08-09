@@ -5,19 +5,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Lessons.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.Services;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.Lessons.Services;
 
 public class LessonService : ILessonService
 {
     private readonly IAppDbContext _context;
+    private readonly IAuditLogService _auditLogService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<LessonService> _logger;
 
-    public LessonService(IAppDbContext context)
+    public LessonService(IAppDbContext context, IAuditLogService auditLogService, ICurrentUserService currentUserService, ILogger<LessonService> logger)
     {
         _context = context;
+        _auditLogService = auditLogService;
+        _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     public async Task<Result<PagedResult<LessonSummaryResponse>>> GetPagedListAsync(LessonListQuery query, CancellationToken cancellationToken = default)
@@ -185,6 +194,19 @@ public class LessonService : ILessonService
         await ResequenceLessonsAsync(request.CourseId, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Create",
+                TableName = "Lessons",
+                RecordId = lesson.LessonId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} created Lesson {LessonId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, lesson.LessonId, lesson.CourseId, lesson.Title);
+        }
+
         return await GetLessonByIdAsync(lesson.CourseId, lesson.LessonId, cancellationToken);
     }
 
@@ -250,6 +272,19 @@ public class LessonService : ILessonService
         await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Update",
+                TableName = "Lessons",
+                RecordId = lesson.LessonId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} updated Lesson {LessonId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, lesson.LessonId, lesson.CourseId, lesson.Title);
+        }
+
         return await GetLessonByIdAsync(lesson.CourseId, lesson.LessonId, cancellationToken);
     }
 
@@ -269,6 +304,19 @@ public class LessonService : ILessonService
         await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Archive",
+                TableName = "Lessons",
+                RecordId = lesson.LessonId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} archived Lesson {LessonId}", _currentUserService.UserId.Value, lesson.LessonId);
+        }
+
         return Result.Success(true);
     }
 
@@ -293,6 +341,19 @@ public class LessonService : ILessonService
         await ResequenceLessonsAsync(lesson.CourseId, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Restore",
+                TableName = "Lessons",
+                RecordId = lesson.LessonId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} restored Lesson {LessonId}", _currentUserService.UserId.Value, lesson.LessonId);
+        }
+
         return Result.Success(true);
     }
 

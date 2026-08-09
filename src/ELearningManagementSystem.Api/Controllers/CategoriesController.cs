@@ -24,8 +24,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> GetCategories([FromQuery] CategoryListQuery query, CancellationToken cancellationToken)
     {
         var result = await _categoryService.GetPagedListAsync(query, cancellationToken);
-        if (result.IsFailure) return BadRequest(new { Error = result.Error });
-        return Ok(result.Value);
+        return result.ToActionResult();
     }
 
     /// <summary>GET /api/categories/{id} — Get a category by ID</summary>
@@ -34,8 +33,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> GetCategory(int id, CancellationToken cancellationToken)
     {
         var result = await _categoryService.GetByIdAsync(id, cancellationToken);
-        if (result.IsFailure) return NotFound(new { Error = result.Error });
-        return Ok(result.Value);
+        return result.ToActionResult();
     }
 
     /// <summary>POST /api/categories — Create a category</summary>
@@ -44,7 +42,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryRequest request, CancellationToken cancellationToken)
     {
         var result = await _categoryService.CreateAsync(request, cancellationToken);
-        if (result.IsFailure) return BadRequest(new { Error = result.Error });
+        if (result.IsFailure) return result.ToActionResult();
         return Created($"/api/categories/{result.Value!.CategoryId}", result.Value);
     }
 
@@ -54,12 +52,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
         var result = await _categoryService.UpdateAsync(id, request, cancellationToken);
-        if (result.IsFailure)
-        {
-            if (result.Error == "CategoryNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
-        }
-        return Ok(result.Value);
+        return result.ToActionResult();
     }
 
     /// <summary>POST /api/categories/{id}/archive — Archive a category (sets DeleteFlag = 1)</summary>
@@ -68,12 +61,7 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> ArchiveCategory(int id, CancellationToken cancellationToken)
     {
         var result = await _categoryService.ArchiveCategoryAsync(id, cancellationToken);
-        if (result.IsFailure)
-        {
-            if (result.Error == "CategoryNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
-        }
-        return Ok(new { Message = "Category archived successfully." });
+        return result.ToActionResult();
     }
 
     /// <summary>POST /api/categories/{id}/restore — Restore a category (sets DeleteFlag = 0)</summary>
@@ -82,11 +70,6 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> RestoreCategory(int id, CancellationToken cancellationToken)
     {
         var result = await _categoryService.RestoreCategoryAsync(id, cancellationToken);
-        if (result.IsFailure)
-        {
-            if (result.Error == "CategoryNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
-        }
-        return Ok(new { Message = "Category restored successfully." });
+        return result.ToActionResult();
     }
 }

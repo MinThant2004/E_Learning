@@ -3,16 +3,19 @@ using ELearningManagementSystem.Application.Features.QuizAttempts.DTOs;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.QuizAttempts.Services;
 
 public class QuizAttemptService : IQuizAttemptService
 {
     private readonly IAppDbContext _context;
+    private readonly ILogger<QuizAttemptService> _logger;
 
-    public QuizAttemptService(IAppDbContext context)
+    public QuizAttemptService(IAppDbContext context, ILogger<QuizAttemptService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     private async Task<Result<Quiz>> ValidateAvailabilityAsync(int courseId, int userId, CancellationToken cancellationToken)
@@ -138,6 +141,13 @@ public class QuizAttemptService : IQuizAttemptService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("User {UserId} submitted Quiz {QuizId} for Course {CourseId} (AttemptId={AttemptId}, Score={Score}, Passed={Passed})", userId, quiz.QuizId, courseId, attempt.AttemptId, score, passed);
+
+        if (enrollment != null && passed && enrollment.Completed)
+        {
+            _logger.LogInformation("User {UserId} successfully completed Course {CourseId}", userId, courseId);
+        }
 
         var response = new QuizAttemptResultResponse
         {

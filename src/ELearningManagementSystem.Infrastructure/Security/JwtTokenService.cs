@@ -18,7 +18,7 @@ public class JwtTokenService : IJwtTokenService
         _configuration = configuration;
     }
 
-    public string GenerateToken(User user, string roleName, System.Collections.Generic.IEnumerable<string> permissions)
+    public string GenerateToken(User user, System.Collections.Generic.IEnumerable<string> roles, System.Collections.Generic.IEnumerable<string> permissions)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["SecretKey"]
@@ -37,12 +37,16 @@ public class JwtTokenService : IJwtTokenService
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Name, user.FullName),
-            new(ClaimTypes.Role, roleName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Iat,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64)
         };
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         foreach (var permission in permissions)
         {

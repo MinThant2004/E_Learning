@@ -430,23 +430,13 @@
 
     private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
     {
-        try
+        var rawError = await ApiResponseHelper.GetErrorMessageAsync(response);
+        return rawError switch
         {
-            var apiError = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-            if (apiError?.Error != null)
-            {
-                if (apiError.Error == "CategoryAlreadyExists")
-                    return "A category with this name already exists.";
-                if (apiError.Error == "CategoryInUse")
-                    return "This category cannot be deleted because it is currently used by one or more courses.";
-                return apiError.Error;
-            }
-            return $"Server error ({response.StatusCode})";
-        }
-        catch
-        {
-            return $"Server error ({response.StatusCode})";
-        }
+            "CategoryAlreadyExists" => "A category with this name already exists.",
+            "CategoryInUse" => "This category cannot be deleted because it is currently used by one or more courses.",
+            _ => rawError
+        };
     }
 
     private async Task SaveCategory()
@@ -527,10 +517,5 @@
             {
                 IsDeleting = false;
             }
-    }
-
-    private class ApiErrorResponse
-    {
-        public string? Error { get; set; }
     }
 }

@@ -32,13 +32,13 @@ public class ExceptionHandlingMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
+        var isDevelopment = context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
         var response = new
         {
-            StatusCode = context.Response.StatusCode,
-            Message = "An internal server error occurred.",
-            Detail = context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
-                ? exception.Message
-                : null
+            Error = isDevelopment
+                ? $"Internal Server Error: {exception.Message}"
+                : "An internal server error occurred.",
+            TraceId = context.TraceIdentifier
         };
 
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions

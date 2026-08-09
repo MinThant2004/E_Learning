@@ -1,6 +1,8 @@
 @page "/courses"
 @implements IDisposable
 
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Course.Read")]
 @using ELearningManagementSystem.App.Components.UI
 @using ELearningManagementSystem.App.Services
 @inject CourseApiClient CourseClient

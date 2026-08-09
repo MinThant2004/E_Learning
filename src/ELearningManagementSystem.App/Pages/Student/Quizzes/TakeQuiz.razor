@@ -2,7 +2,7 @@
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Permission:Quiz.Read")]
 @inject QuizAttemptApiClient QuizClient
 @inject NavigationManager NavManager
 

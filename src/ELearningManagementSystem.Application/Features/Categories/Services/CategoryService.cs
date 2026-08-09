@@ -5,19 +5,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Categories.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.DTOs;
+using ELearningManagementSystem.Application.Features.AuditLogs.Services;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ELearningManagementSystem.Application.Features.Categories.Services;
 
 public class CategoryService : ICategoryService
 {
     private readonly IAppDbContext _context;
+    private readonly IAuditLogService _auditLogService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<CategoryService> _logger;
 
-    public CategoryService(IAppDbContext context)
+    public CategoryService(IAppDbContext context, IAuditLogService auditLogService, ICurrentUserService currentUserService, ILogger<CategoryService> logger)
     {
         _context = context;
+        _auditLogService = auditLogService;
+        _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     public async Task<Result<IEnumerable<CategoryResponse>>> GetCategoriesAsync(bool? isArchived = false, CancellationToken cancellationToken = default)
@@ -124,6 +133,19 @@ public class CategoryService : ICategoryService
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Create",
+                TableName = "Categories",
+                RecordId = category.CategoryId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} created Category {CategoryId} (Name={CategoryName})", _currentUserService.UserId.Value, category.CategoryId, category.CategoryName);
+        }
+
         return await GetByIdAsync(category.CategoryId, cancellationToken);
     }
 
@@ -153,6 +175,19 @@ public class CategoryService : ICategoryService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Update",
+                TableName = "Categories",
+                RecordId = category.CategoryId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} updated Category {CategoryId} (Name={CategoryName})", _currentUserService.UserId.Value, category.CategoryId, category.CategoryName);
+        }
+
         return await GetByIdAsync(category.CategoryId, cancellationToken);
     }
 
@@ -176,6 +211,19 @@ public class CategoryService : ICategoryService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Archive",
+                TableName = "Categories",
+                RecordId = category.CategoryId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} archived Category {CategoryId}", _currentUserService.UserId.Value, category.CategoryId);
+        }
+
         return Result.Success(true);
     }
 
@@ -191,6 +239,19 @@ public class CategoryService : ICategoryService
         category.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (_currentUserService.UserId.HasValue)
+        {
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = _currentUserService.UserId.Value,
+                Action = "Restore",
+                TableName = "Categories",
+                RecordId = category.CategoryId
+            }, cancellationToken);
+            
+            _logger.LogInformation("User {UserId} restored Category {CategoryId}", _currentUserService.UserId.Value, category.CategoryId);
+        }
 
         return Result.Success(true);
     }

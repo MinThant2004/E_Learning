@@ -27,7 +27,7 @@ public class CoursesController : ControllerBase
 
     /// <summary>GET /api/courses — Browse active courses</summary>
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Policy = "Permission:Course.Read")]
     public async Task<IActionResult> GetCourses([FromQuery] CourseListQuery query, CancellationToken cancellationToken)
     {
         var hasCourseReadPermission = User.Claims.Any(c => c.Type == "permission" && c.Value == "Course.Read");
@@ -38,18 +38,16 @@ public class CoursesController : ControllerBase
         }
 
         var result = await _courseService.GetPagedListAsync(query, cancellationToken);
-        if (result.IsFailure) return BadRequest(new { Error = result.Error });
-        return Ok(result.Value);
+        return result.ToActionResult();
     }
 
     /// <summary>GET /api/courses/{id} — View one active course</summary>
     [HttpGet("{id}")]
-    [AllowAnonymous]
+    [Authorize(Policy = "Permission:Course.Read")]
     public async Task<IActionResult> GetCourse(int id, CancellationToken cancellationToken)
     {
         var result = await _courseService.GetByIdAsync(id, cancellationToken);
-        if (result.IsFailure) return NotFound(new { Error = result.Error });
-        return Ok(result.Value);
+        return result.ToActionResult();
     }
 
     /// <summary>POST /api/courses — Create a course with optional thumbnail</summary>
@@ -81,7 +79,7 @@ public class CoursesController : ControllerBase
             // Cleanup saved thumbnail on failure
             if (thumbnailUrl != null)
                 DeleteThumbnail(thumbnailUrl);
-            return BadRequest(new { Error = result.Error });
+            return result.ToActionResult();
         }
 
         return Created($"/api/courses/{result.Value!.CourseId}", result.Value);
@@ -124,8 +122,7 @@ public class CoursesController : ControllerBase
         {
             if (newThumbnailUrl != null)
                 DeleteThumbnail(newThumbnailUrl);
-            if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
+            return result.ToActionResult();
         }
 
         // Cleanup old thumbnail file if removed or replaced
@@ -144,12 +141,7 @@ public class CoursesController : ControllerBase
     public async Task<IActionResult> ArchiveCourse(int id, CancellationToken cancellationToken)
     {
         var result = await _courseService.ArchiveCourseAsync(id, cancellationToken);
-        if (result.IsFailure)
-        {
-            if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
-        }
-        return Ok(new { Message = "Course archived successfully." });
+        return result.ToActionResult();
     }
 
     /// <summary>POST /api/courses/{id}/restore — Restore a course (sets DeleteFlag = 0)</summary>
@@ -158,12 +150,7 @@ public class CoursesController : ControllerBase
     public async Task<IActionResult> RestoreCourse(int id, CancellationToken cancellationToken)
     {
         var result = await _courseService.RestoreCourseAsync(id, cancellationToken);
-        if (result.IsFailure)
-        {
-            if (result.Error == "CourseNotFound") return NotFound(new { Error = result.Error });
-            return BadRequest(new { Error = result.Error });
-        }
-        return Ok(new { Message = "Course restored successfully." });
+        return result.ToActionResult();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
