@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace ELearningManagementSystem.App.Services;
 
@@ -15,7 +16,19 @@ public class PermissionApiClient
 
     public async Task<List<PermissionResponse>?> GetAllPermissionsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<PermissionResponse>>("api/permissions");
+        try
+        {
+            var response = await _httpClient.GetAsync("api/permissions");
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new CustomApiException(response.StatusCode, $"API returned status code {response.StatusCode}");
+            }
+            return await response.Content.ReadFromJsonAsync<List<PermissionResponse>>();
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new CustomApiException(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError, ex.Message);
+        }
     }
 }
 

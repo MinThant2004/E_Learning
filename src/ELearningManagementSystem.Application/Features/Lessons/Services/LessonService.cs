@@ -219,10 +219,14 @@ public class LessonService : ILessonService
             return Result.Failure<LessonDetailResponse>("InvalidLessonContent");
 
         var lesson = await _context.Lessons
+            .Include(l => l.Course)
             .FirstOrDefaultAsync(l => l.LessonId == lessonId && !l.DeleteFlag, cancellationToken);
 
         if (lesson == null)
             return Result.Failure<LessonDetailResponse>("LessonNotFound");
+
+        if (lesson.Course.DeleteFlag)
+            return Result.Failure<LessonDetailResponse>("CannotUpdateLessonOfArchivedCourse");
 
         // Check if display order is changed and shift other lessons
         if (lesson.DisplayOrder != request.DisplayOrder && request.DisplayOrder >= 1)

@@ -11,6 +11,7 @@ using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ELearningManagementSystem.Application.Features.Categories.Services;
 
@@ -20,37 +21,46 @@ public class CategoryService : ICategoryService
     private readonly IAuditLogService _auditLogService;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CategoryService> _logger;
+    private readonly IMemoryCache _cache;
+    private const string CategoriesCacheKey = "all-categories";
 
-    public CategoryService(IAppDbContext context, IAuditLogService auditLogService, ICurrentUserService currentUserService, ILogger<CategoryService> logger)
+    public CategoryService(IAppDbContext context, IAuditLogService auditLogService, ICurrentUserService currentUserService, ILogger<CategoryService> logger, IMemoryCache cache)
     {
         _context = context;
         _auditLogService = auditLogService;
         _currentUserService = currentUserService;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<Result<IEnumerable<CategoryResponse>>> GetCategoriesAsync(bool? isArchived = false, CancellationToken cancellationToken = default)
     {
-        IQueryable<Category> query = _context.Categories.AsNoTracking();
+        if (!_cache.TryGetValue(CategoriesCacheKey, out List<CategoryResponse>? allCategories) || allCategories == null)
+        {
+            allCategories = await _context.Categories
+                .AsNoTracking()
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new CategoryResponse
+                {
+                    CategoryId = c.CategoryId,
+                    CategoryName = c.CategoryName,
+                    Description = c.Description,
+                    CreatedAt = c.CreatedAt,
+                    DeleteFlag = c.DeleteFlag
+                })
+                .ToListAsync(cancellationToken);
+
+            _cache.Set(CategoriesCacheKey, allCategories, TimeSpan.FromMinutes(10));
+        }
+
+        var result = allCategories.AsEnumerable();
 
         if (isArchived.HasValue)
         {
-            query = query.Where(c => c.DeleteFlag == isArchived.Value);
+            result = result.Where(c => c.DeleteFlag == isArchived.Value);
         }
 
-        var categories = await query
-            .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new CategoryResponse
-            {
-                CategoryId = c.CategoryId,
-                CategoryName = c.CategoryName,
-                Description = c.Description,
-                CreatedAt = c.CreatedAt,
-                DeleteFlag = c.DeleteFlag
-            })
-            .ToListAsync(cancellationToken);
-
-        return Result.Success<IEnumerable<CategoryResponse>>(categories);
+        return Result.Success(result);
     }
 
     public async Task<Result<PagedResult<CategoryResponse>>> GetPagedListAsync(CategoryListQuery queryDto, CancellationToken cancellationToken = default)
@@ -132,6 +142,7 @@ public class CategoryService : ICategoryService
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(cancellationToken);
+        _cache.Remove(CategoriesCacheKey);
 
         if (_currentUserService.UserId.HasValue)
         {
@@ -174,6 +185,7 @@ public class CategoryService : ICategoryService
         category.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        _cache.Remove(CategoriesCacheKey);
 
         if (_currentUserService.UserId.HasValue)
         {
@@ -210,6 +222,7 @@ public class CategoryService : ICategoryService
         category.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        _cache.Remove(CategoriesCacheKey);
 
         if (_currentUserService.UserId.HasValue)
         {
@@ -239,6 +252,7 @@ public class CategoryService : ICategoryService
         category.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        _cache.Remove(CategoriesCacheKey);
 
         if (_currentUserService.UserId.HasValue)
         {

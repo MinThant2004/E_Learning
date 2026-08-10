@@ -38,7 +38,6 @@ public class CourseService : ICourseService
             return Result.Failure<PagedResult<CourseSummaryResponse>>("PermissionDenied");
         }
         var dbQuery = _dbContext.Courses
-            .Include(c => c.Category)
             .AsNoTracking()
             .AsQueryable();
 

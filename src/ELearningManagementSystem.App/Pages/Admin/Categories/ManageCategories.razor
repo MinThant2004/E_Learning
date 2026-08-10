@@ -66,13 +66,13 @@
                     <div class="sm:col-span-6">
                         <label for="name" class="block text-sm font-medium text-slate-700">Category Name <span class="text-red-500">*</span></label>
                         <div class="mt-1">
-                            <input type="text" id="name" @bind="CurrentCategory.CategoryName" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Software Development" />
+                            <input type="text" id="name" maxlength="100" @bind="CurrentCategory.CategoryName" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Software Development" />
                         </div>
                     </div>
                     <div class="sm:col-span-6">
                         <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
                         <div class="mt-1">
-                            <textarea id="description" rows="3" @bind="CurrentCategory.Description" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Brief description of courses in this category..."></textarea>
+                            <textarea id="description" rows="3" maxlength="255" @bind="CurrentCategory.Description" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Brief description of courses in this category..."></textarea>
                         </div>
                     </div>
                 </div>

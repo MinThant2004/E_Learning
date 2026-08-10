@@ -103,7 +103,7 @@
                     <div class="sm:col-span-4">
                         <label for="quizTitle" class="block text-sm font-medium text-slate-700">Quiz Title <span class="text-red-500">*</span></label>
                         <div class="mt-1">
-                            <input type="text" id="quizTitle" @bind="QuizTitle" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Final Course Assessment" />
+                            <input type="text" id="quizTitle" maxlength="200" @bind="QuizTitle" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Final Course Assessment" />
                         </div>
                     </div>
                     <div class="sm:col-span-2">
@@ -473,12 +473,16 @@
         ErrorMessage = null;
         try
         {
-            // Load course name
-            var course = await CourseClient.GetCourseAsync(CourseId);
+            // Load course name and ALL quizzes in parallel
+            var courseTask = CourseClient.GetCourseAsync(CourseId);
+            var quizzesTask = QuizClient.GetQuizzesByCourseAsync(CourseId, null);
+
+            await Task.WhenAll(courseTask, quizzesTask);
+
+            var course = await courseTask;
             if (course != null) CourseTitle = course.Title;
 
-            // Load ALL quizzes for this course
-            var allQuizzes = await QuizClient.GetQuizzesByCourseAsync(CourseId, null);
+            var allQuizzes = await quizzesTask;
 
             ActiveQuiz = null;
             ArchivedQuizzes = new();

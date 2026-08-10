@@ -177,11 +177,16 @@
 
     private class RegisterModel
     {
-        [Required]
+        [Required(ErrorMessage = "Full Name is required.")]
+        [MaxLength(100, ErrorMessage = "Full name must not exceed 100 characters.")]
         public string FullName { get; set; } = string.Empty;
-        [Required]
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        [MaxLength(255, ErrorMessage = "Email must not exceed 255 characters.")]
         public string Email { get; set; } = string.Empty;
-        [Required]
+
+        [Required(ErrorMessage = "Password is required.")]
         public string Password { get; set; } = string.Empty;
     }
 }

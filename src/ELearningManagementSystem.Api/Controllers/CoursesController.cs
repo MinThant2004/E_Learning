@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace ELearningManagementSystem.Api.Controllers;
 
@@ -218,17 +219,29 @@ public class CoursesController : ControllerBase
 
 public class CreateCourseForm
 {
+    [Required(ErrorMessage = "Title is required.")]
+    [MaxLength(200, ErrorMessage = "Title must not exceed 200 characters.")]
     public string Title { get; set; } = string.Empty;
+
     public string? Description { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Please select a category.")]
     public int CategoryId { get; set; }
+
     public IFormFile? Thumbnail { get; set; }
 }
 
 public class UpdateCourseForm
 {
+    [Required(ErrorMessage = "Title is required.")]
+    [MaxLength(200, ErrorMessage = "Title must not exceed 200 characters.")]
     public string Title { get; set; } = string.Empty;
+
     public string? Description { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Please select a category.")]
     public int CategoryId { get; set; }
+
     public IFormFile? Thumbnail { get; set; }
     public bool RemoveThumbnail { get; set; }
 }

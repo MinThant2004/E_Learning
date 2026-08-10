@@ -46,7 +46,7 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
             {
                 var activeCategories = await _context.Categories.CountAsync(c => !c.DeleteFlag);
                 var archivedCategories = await _context.Categories.CountAsync(c => c.DeleteFlag);
-                
+
                 response.Metrics.Add("Categories", new ContentMetricResponse
                 {
                     Title = "Categories",
@@ -130,7 +130,7 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
             // 5. Users (Only if User.Read is granted)
             if (permissions.Contains("User.Read"))
             {
-                var totalUsers = await _context.Users.CountAsync(); // Assuming no DeleteFlag for users or it's standard. We'll just count all for now.
+                var totalUsers = await _context.Users.CountAsync();
                 response.Metrics.Add("Users", new ContentMetricResponse
                 {
                     Title = "Users",

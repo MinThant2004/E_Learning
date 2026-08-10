@@ -75,6 +75,9 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Add memory cache
+builder.Services.AddMemoryCache();
+
 // Add layer services
 builder.Services.AddApplication();
 builder.Services.AddDatabase(builder.Configuration);

@@ -18,12 +18,14 @@ public class UserService : IUserService
     private readonly IAppDbContext _context;
     private readonly IAuditLogService _auditLogService;
     private readonly ILogger<UserService> _logger;
+    private readonly IPermissionService _permissionService;
 
-    public UserService(IAppDbContext context, IAuditLogService auditLogService, ILogger<UserService> logger)
+    public UserService(IAppDbContext context, IAuditLogService auditLogService, ILogger<UserService> logger, IPermissionService permissionService)
     {
         _context = context;
         _auditLogService = auditLogService;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<PagedResult<AdminUserSummaryResponse>> GetPagedUsersAsync(UserListQuery query)
@@ -219,6 +221,7 @@ public class UserService : IUserService
         }
 
         await _context.SaveChangesAsync(default);
+        _permissionService.InvalidatePermissionCache();
 
         await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
         {
@@ -299,6 +302,7 @@ public class UserService : IUserService
         }
 
         await _context.SaveChangesAsync(default);
+        _permissionService.InvalidatePermissionCache();
 
         await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
         {
@@ -340,6 +344,7 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(default);
+        _permissionService.InvalidatePermissionCache();
 
         await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
         {

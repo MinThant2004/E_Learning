@@ -8,6 +8,8 @@
 @inject RoleApiClient RoleApi
 @inject PermissionApiClient PermissionApi
 @inject NavigationManager NavigationManager
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Manage Roles</PageTitle>
 
@@ -117,7 +119,7 @@
                                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">@rowNum</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-semibold">@GetFriendlyRoleName(role.RoleName)</td>
                                 <td class="px-3 py-4 text-sm text-slate-500">@role.Description</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@role.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@role.CreatedAt.ToString("dd/MM/yyyy")</td>
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                     <div class="flex items-center justify-end space-x-3">
                                         <AuthorizeView Policy="Permission:Role.Update">
@@ -130,16 +132,16 @@
                                                 </button>
                                             </Authorized>
                                         </AuthorizeView>
-                                        <AuthorizeView Policy="Permission:Permission.Assign">
-                                            <Authorized>
-                                                <button @onclick="() => ShowPermissionsModal(role)" class="text-teal-600 hover:text-teal-900 transition-colors p-1 rounded hover:bg-teal-50" title="Manage Permissions">
-                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                    </svg>
-                                                    <span class="sr-only">Permissions</span>
-                                                </button>
-                                            </Authorized>
-                                        </AuthorizeView>
+                                         <AuthorizeView Policy="Permission:Permission.Read">
+                                             <Authorized>
+                                                 <button @onclick="() => ShowPermissionsModal(role)" class="text-teal-600 hover:text-teal-900 transition-colors p-1 rounded hover:bg-teal-50" title="Manage Permissions">
+                                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                     </svg>
+                                                     <span class="sr-only">Permissions</span>
+                                                 </button>
+                                             </Authorized>
+                                         </AuthorizeView>
                                     </div>
                                 </td>
                             </tr>
@@ -188,12 +190,12 @@
                                     }
                                     else
                                     {
-                                        <input type="text" @bind="editingRole.RoleName" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
+                                        <input type="text" maxlength="100" @bind="editingRole.RoleName" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
                                     }
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700">Description</label>
-                                    <textarea @bind="editingRole.Description" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
+                                    <textarea maxlength="255" @bind="editingRole.Description" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -276,14 +278,14 @@
                                                      <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                          @foreach (var perm in moduleGroup)
                                                          {
-                                                             <label class="relative flex items-start p-3 rounded-lg transition-colors @(selectedRoleName == "SuperAdmin" ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-slate-100")">
-                                                                 <div class="flex h-6 items-center">
-                                                                     <input type="checkbox" 
-                                                                            checked="@selectedPermissionIds.Contains(perm.PermissionId)"
-                                                                            @onchange="@(e => TogglePermission(perm.PermissionId, e.Value))"
-                                                                            disabled="@(selectedRoleName == "SuperAdmin")"
-                                                                            class="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
-                                                                 </div>
+                                                              <label class="relative flex items-start p-3 rounded-lg transition-colors @(selectedRoleName == "SuperAdmin" || !canAssignPermissions ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-slate-100")">
+                                                                  <div class="flex h-6 items-center">
+                                                                      <input type="checkbox" 
+                                                                             checked="@selectedPermissionIds.Contains(perm.PermissionId)"
+                                                                             @onchange="@(e => TogglePermission(perm.PermissionId, e.Value))"
+                                                                             disabled="@(selectedRoleName == "SuperAdmin" || !canAssignPermissions)"
+                                                                             class="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
+                                                                  </div>
                                                                  <div class="ml-3 text-sm leading-6">
                                                                      <span class="font-medium text-slate-900 block">@perm.PermissionName</span>
                                                                      <span class="text-slate-500 block">@perm.PermissionCode</span>
@@ -301,7 +303,7 @@
                     </div>
                 </div>
                 <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                    @if (selectedRoleName != "SuperAdmin")
+                    @if (selectedRoleName != "SuperAdmin" && canAssignPermissions)
                     {
                         <button type="button" @onclick="SavePermissions" disabled="@isSaving" class="inline-flex w-full justify-center rounded-full border border-transparent bg-teal-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-70">
                             @if (isSaving)
@@ -345,6 +347,7 @@
     private string selectedRoleName = "";
     private List<PermissionResponse> allPermissions = new();
     private HashSet<int> selectedPermissionIds = new();
+    private bool canAssignPermissions = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -353,11 +356,45 @@
         searchTimer.AutoReset = false;
 
         await LoadRolesAsync();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var assignAuth = await AuthorizationService.AuthorizeAsync(user, "Permission:Permission.Assign");
+        canAssignPermissions = assignAuth.Succeeded;
         
-        var perms = await PermissionApi.GetAllPermissionsAsync();
-        if (perms != null)
+        try
         {
-            allPermissions = perms;
+            var perms = await PermissionApi.GetAllPermissionsAsync();
+            if (perms != null)
+            {
+                allPermissions = perms;
+            }
+        }
+        catch (CustomApiException ex)
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                errorMessage = "You do not have permission to view system permissions (403 Forbidden).";
+            }
+            else
+            {
+                errorMessage = $"Error loading permissions: {ex.Message}";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                errorMessage = "You do not have permission to view system permissions (403 Forbidden).";
+            }
+            else
+            {
+                errorMessage = $"Network error loading permissions: {ex.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred while loading permissions: {ex.Message}";
         }
     }
 

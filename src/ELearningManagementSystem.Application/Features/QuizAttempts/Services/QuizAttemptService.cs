@@ -4,6 +4,7 @@ using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using FluentValidation;
 
 namespace ELearningManagementSystem.Application.Features.QuizAttempts.Services;
 
@@ -11,11 +12,13 @@ public class QuizAttemptService : IQuizAttemptService
 {
     private readonly IAppDbContext _context;
     private readonly ILogger<QuizAttemptService> _logger;
+    private readonly IValidator<SubmitQuizAttemptRequest> _validator;
 
-    public QuizAttemptService(IAppDbContext context, ILogger<QuizAttemptService> logger)
+    public QuizAttemptService(IAppDbContext context, ILogger<QuizAttemptService> logger, IValidator<SubmitQuizAttemptRequest> validator)
     {
         _context = context;
         _logger = logger;
+        _validator = validator;
     }
 
     private async Task<Result<Quiz>> ValidateAvailabilityAsync(int courseId, int userId, CancellationToken cancellationToken)
@@ -83,6 +86,13 @@ public class QuizAttemptService : IQuizAttemptService
 
     public async Task<Result<QuizAttemptResultResponse>> SubmitQuizAttemptAsync(int courseId, int userId, SubmitQuizAttemptRequest request, CancellationToken cancellationToken = default)
     {
+        var validation = await _validator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            var firstError = validation.Errors.First().ErrorMessage;
+            return Result.Failure<QuizAttemptResultResponse>($"ValidationError: {firstError}");
+        }
+
         var validationResult = await ValidateAvailabilityAsync(courseId, userId, cancellationToken);
         if (!validationResult.IsSuccess)
             return Result.Failure<QuizAttemptResultResponse>(validationResult.Error!);

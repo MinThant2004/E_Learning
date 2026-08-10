@@ -1,6 +1,6 @@
 @if (IsVisible)
 {
-    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" @onkeydown="HandleKeyDown">
         <!-- Backdrop with glassmorphic effect -->
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity" @onclick="Cancel" aria-hidden="true"></div>
@@ -37,6 +37,7 @@
                 </div>
                 <div class="bg-slate-50 px-6 py-4 sm:px-8 sm:flex sm:flex-row-reverse border-t border-slate-100">
                     <button type="button" @onclick="Confirm"
+                            @ref="ConfirmButton"
                             class="@($"w-full inline-flex justify-center rounded-full border border-transparent shadow-sm px-5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all sm:ml-3 sm:w-auto { (IsDestructive ? "bg-red-600 hover:bg-red-700 focus:ring-red-500" : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500") }")">
                         @ConfirmText
                     </button>
@@ -81,6 +82,26 @@
     [Parameter]
     public EventCallback OnCancel { get; set; }
 
+    private ElementReference ConfirmButton;
+    private bool _focusSet;
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Cancel();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible && !_focusSet)
+        {
+            _focusSet = true;
+            await ConfirmButton.FocusAsync();
+        }
+    }
+
     private async Task Confirm()
     {
         await OnConfirm.InvokeAsync(null);
@@ -88,6 +109,7 @@
 
     private async Task Cancel()
     {
+        _focusSet = false;
         await OnCancel.InvokeAsync(null);
     }
 }

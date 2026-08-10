@@ -38,7 +38,6 @@ namespace ELearningManagementSystem.Application.Features.StudentDashboard.Servic
 
             // Get all progress for this user
             var lessonProgresses = await _context.LessonProgresses
-                .Include(lp => lp.Enrollment)
                 .Where(lp => lp.Enrollment.UserId == userId)
                 .ToListAsync();
 

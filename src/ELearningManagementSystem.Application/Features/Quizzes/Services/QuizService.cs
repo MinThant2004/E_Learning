@@ -134,10 +134,14 @@ public class QuizService : IQuizService
             return Result.Failure<QuizDetailResponse>("InvalidPassingScore");
 
         var quiz = await _context.Quizzes
+            .Include(q => q.Course)
             .FirstOrDefaultAsync(q => q.QuizId == quizId && !q.DeleteFlag, cancellationToken);
 
         if (quiz == null)
             return Result.Failure<QuizDetailResponse>("QuizNotFound");
+
+        if (quiz.Course.DeleteFlag)
+            return Result.Failure<QuizDetailResponse>("CourseArchived");
 
         quiz.Title = request.Title.Trim();
         quiz.PassingScore = request.PassingScore;
@@ -238,10 +242,14 @@ public class QuizService : IQuizService
             return Result.Failure<QuestionResponse>("InvalidQuestionText");
 
         var quiz = await _context.Quizzes
+            .Include(q => q.Course)
             .FirstOrDefaultAsync(q => q.QuizId == request.QuizId && !q.DeleteFlag, cancellationToken);
 
         if (quiz == null)
             return Result.Failure<QuestionResponse>("QuizNotFound");
+
+        if (quiz.Course.DeleteFlag)
+            return Result.Failure<QuestionResponse>("CourseArchived");
 
         // Validate options
         if (request.Options.Count < 2)
@@ -313,7 +321,7 @@ public class QuizService : IQuizService
             return Result.Failure<QuestionResponse>("InvalidQuestionText");
 
         var question = await _context.Questions
-            .Include(q => q.Quiz)
+            .Include(q => q.Quiz).ThenInclude(q => q.Course)
             .FirstOrDefaultAsync(q => q.QuestionId == questionId, cancellationToken);
 
         if (question == null)
@@ -321,6 +329,9 @@ public class QuizService : IQuizService
 
         if (question.Quiz.DeleteFlag)
             return Result.Failure<QuestionResponse>("QuizNotFound");
+
+        if (question.Quiz.Course.DeleteFlag)
+            return Result.Failure<QuestionResponse>("CourseArchived");
 
         question.QuestionText = request.QuestionText.Trim();
 
@@ -353,10 +364,17 @@ public class QuizService : IQuizService
     {
         var question = await _context.Questions
             .Include(q => q.QuestionOptions)
+            .Include(q => q.Quiz).ThenInclude(q => q.Course)
             .FirstOrDefaultAsync(q => q.QuestionId == questionId, cancellationToken);
 
         if (question == null)
             return Result.Failure<bool>("QuestionNotFound");
+
+        if (question.Quiz.DeleteFlag)
+            return Result.Failure<bool>("QuizNotFound");
+
+        if (question.Quiz.Course.DeleteFlag)
+            return Result.Failure<bool>("CourseArchived");
 
         int quizId = question.QuizId;
 

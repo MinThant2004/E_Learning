@@ -25,7 +25,7 @@
   </Target>
 
   <Target Name="Tailwind" BeforeTargets="Build" DependsOnTargets="NpmInstall">
-    <Exec Command="npm run css:build" />
+    <Exec Command="npm run css:build" EnvironmentVariables="NODE_OPTIONS=--max-old-space-size=4096" />
   </Target>
 
 </Project>

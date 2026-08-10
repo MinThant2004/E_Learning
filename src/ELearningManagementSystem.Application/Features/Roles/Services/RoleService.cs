@@ -15,12 +15,14 @@ public class RoleService : IRoleService
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<RoleService> _logger;
+    private readonly IPermissionService _permissionService;
 
-    public RoleService(IAppDbContext context, ICurrentUserService currentUserService, ILogger<RoleService> logger)
+    public RoleService(IAppDbContext context, ICurrentUserService currentUserService, ILogger<RoleService> logger, IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<PagedResult<RoleResponse>> GetRolesAsync(RoleListQuery query)
@@ -248,6 +250,7 @@ public class RoleService : IRoleService
         }
 
         await _context.SaveChangesAsync();
+        _permissionService.InvalidatePermissionCache();
 
         _logger.LogInformation("User {UserId} updated permissions for Role {RoleId} (Assigned {PermissionCount} permissions)", currentUserId.Value, roleId, request.PermissionIds.Count);
 

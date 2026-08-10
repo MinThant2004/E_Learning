@@ -70,7 +70,7 @@
                     <div class="sm:col-span-6">
                         <label for="title" class="block text-sm font-medium text-slate-700">Course Title <span class="text-red-500">*</span></label>
                         <div class="mt-1">
-                            <input type="text" id="title" @bind="CurrentCourse.Title" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Introduction to Blazor" />
+                            <input type="text" id="title" maxlength="200" @bind="CurrentCourse.Title" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Introduction to Blazor" />
                         </div>
                     </div>
                     <div class="sm:col-span-6">

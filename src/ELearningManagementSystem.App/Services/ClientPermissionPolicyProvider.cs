@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
@@ -26,7 +29,17 @@ public class ClientPermissionPolicyProvider : IAuthorizationPolicyProvider
             var permission = policyName[PermissionPrefix.Length..];
             var policy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
-                .RequireClaim("permission", permission)
+                .RequireAssertion(ctx =>
+                {
+                    var claims = ctx.User.FindAll("permission").Select(c => c.Value).ToList();
+                    if (claims.Contains(permission))
+                        return true;
+
+                    if (permission == "Permission.Read" && claims.Contains("Permission.Assign"))
+                        return true;
+
+                    return false;
+                })
                 .Build();
 
             return Task.FromResult<AuthorizationPolicy?>(policy);
