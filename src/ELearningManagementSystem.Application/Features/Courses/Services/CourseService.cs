@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -175,6 +176,11 @@ public class CourseService : ICourseService
         if (category == null || category.DeleteFlag)
             return Result.Failure<CourseDetailResponse>("CategoryNotFound");
 
+        var oldTitle = course.Title;
+        var oldDescription = course.Description;
+        var oldCategoryId = course.CategoryId;
+        var oldThumbnailUrl = course.ThumbnailUrl;
+
         course.Title = request.Title.Trim();
         course.Description = request.Description?.Trim();
         course.CategoryId = request.CategoryId;
@@ -191,12 +197,32 @@ public class CourseService : ICourseService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        var changes = new List<AuditLogChangeDto>();
+        AddChange(changes, "Title", oldTitle, course.Title);
+        AddChange(changes, "Description", oldDescription, course.Description);
+        if (!string.Equals(oldThumbnailUrl ?? string.Empty, course.ThumbnailUrl ?? string.Empty, StringComparison.Ordinal))
+            changes.Add(new AuditLogChangeDto { Field = "Thumbnail", OldValue = oldThumbnailUrl, NewValue = course.ThumbnailUrl });
+
+        if (oldCategoryId != course.CategoryId)
+        {
+            var oldCategoryName = (await _dbContext.Categories.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CategoryId == oldCategoryId, cancellationToken))?.CategoryName;
+
+            changes.Add(new AuditLogChangeDto
+            {
+                Field = "Category",
+                OldValue = string.IsNullOrEmpty(oldCategoryName) ? $"Category #{oldCategoryId}" : oldCategoryName,
+                NewValue = category.CategoryName
+            });
+        }
+
         await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
         {
             UserId = userId,
             Action = "Update",
             TableName = "Courses",
-            RecordId = course.CourseId
+            RecordId = course.CourseId,
+            Changes = changes
         }, cancellationToken);
 
         _logger.LogInformation("User {UserId} updated Course {CourseId} (Title={Title})", userId, course.CourseId, course.Title);
@@ -275,5 +301,11 @@ public class CourseService : ICourseService
         }
 
         return Result.Success(true);
+    }
+
+    private static void AddChange(List<AuditLogChangeDto> changes, string field, string? oldValue, string? newValue)
+    {
+        if (!string.Equals(oldValue ?? string.Empty, newValue ?? string.Empty, StringComparison.Ordinal))
+            changes.Add(new AuditLogChangeDto { Field = field, OldValue = oldValue, NewValue = newValue });
     }
 }

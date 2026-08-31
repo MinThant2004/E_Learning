@@ -143,6 +143,9 @@ public class QuizService : IQuizService
         if (quiz.Course.DeleteFlag)
             return Result.Failure<QuizDetailResponse>("CourseArchived");
 
+        var oldTitle = quiz.Title;
+        var oldPassingScore = quiz.PassingScore;
+
         quiz.Title = request.Title.Trim();
         quiz.PassingScore = request.PassingScore;
         quiz.UpdatedAt = DateTime.UtcNow;
@@ -151,12 +154,19 @@ public class QuizService : IQuizService
 
         if (_currentUserService.UserId.HasValue)
         {
+            var changes = new List<AuditLogChangeDto>();
+            if (!string.Equals(oldTitle, quiz.Title, StringComparison.Ordinal))
+                changes.Add(new AuditLogChangeDto { Field = "Title", OldValue = oldTitle, NewValue = quiz.Title });
+            if (oldPassingScore != quiz.PassingScore)
+                changes.Add(new AuditLogChangeDto { Field = "Passing Score", OldValue = $"{oldPassingScore}%", NewValue = $"{quiz.PassingScore}%" });
+
             await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
             {
                 UserId = _currentUserService.UserId.Value,
                 Action = "Update",
                 TableName = "Quizzes",
-                RecordId = quiz.QuizId
+                RecordId = quiz.QuizId,
+                Changes = changes
             }, cancellationToken);
             
             _logger.LogInformation("User {UserId} updated Quiz {QuizId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, quiz.QuizId, quiz.CourseId, quiz.Title);

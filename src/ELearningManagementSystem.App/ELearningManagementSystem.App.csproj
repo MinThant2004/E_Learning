@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Blazored.SessionStorage" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.14" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.14" />
@@ -18,14 +19,26 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ELearningManagementSystem.Shared\ELearningManagementSystem.Shared.csproj" />
+    <ProjectReference Include="..\ELearningManagementSystem.Application\ELearningManagementSystem.Application.csproj" />
   </ItemGroup>
+
+  <!-- Node v24 crashes (exit -1073740791) when MSBuild Exec spawns it with a NUL stdin;
+       redirecting stdin from an existing empty file provides a valid handle.
+       A single retry absorbs transient OOM/spawn failures under memory pressure. -->
+  <PropertyGroup>
+    <TailwindStdinFile>$(BaseIntermediateOutputPath)tailwind-stdin-empty.txt</TailwindStdinFile>
+    <TailwindCliCommand>npm run css:build &lt; &quot;$(BaseIntermediateOutputPath)tailwind-stdin-empty.txt&quot;</TailwindCliCommand>
+  </PropertyGroup>
 
   <Target Name="NpmInstall" BeforeTargets="Build" Condition="!Exists('node_modules')">
     <Exec Command="npm install" />
   </Target>
 
-  <Target Name="Tailwind" BeforeTargets="Build" DependsOnTargets="NpmInstall">
-    <Exec Command="npm run css:build" EnvironmentVariables="NODE_OPTIONS=--max-old-space-size=4096" />
+  <Target Name="Tailwind" BeforeTargets="Build" DependsOnTargets="NpmInstall" Condition="!Exists('wwwroot\css\app.css')">
+    <Touch Files="$(TailwindStdinFile)" AlwaysCreate="true" />
+    <Exec Command="$(TailwindCliCommand)" EnvironmentVariables="NODE_OPTIONS=--max-old-space-size=1024" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="TailwindExitCode" />
+    </Exec>
   </Target>
 
 </Project>

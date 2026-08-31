@@ -14,21 +14,23 @@
 
 <PageTitle>Manage Courses</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <PageHeader Title="Manage Courses" Description="A list of all courses in the system including their status and details.">
-        <ActionTemplate>
-            <AuthorizeView Policy="Permission:Course.Create">
-                <Authorized>
-                    <button @onclick="ShowCreateForm" type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors w-full sm:w-auto disabled:opacity-50">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Course
-                    </button>
-                </Authorized>
-            </AuthorizeView>
-        </ActionTemplate>
-    </PageHeader>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Manage Courses</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">A list of all courses in the system including their status and details.</p>
+        </div>
+        <AuthorizeView Policy="Permission:Course.Create">
+            <Authorized>
+                <button @onclick='() => NavManager.NavigateTo("/admin/courses/create")' type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Course
+                </button>
+            </Authorized>
+        </AuthorizeView>
+    </div>
 
     @if (ErrorMessage != null)
     {
@@ -55,125 +57,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-    }
-
-    @if (IsFormVisible)
-    {
-        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <h3 class="text-lg leading-6 font-semibold text-slate-900">@(EditingCourseId.HasValue ? "Edit Course" : "Create New Course")</h3>
-            </div>
-            <div class="px-6 py-6 sm:p-8">
-                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div class="sm:col-span-6">
-                        <label for="title" class="block text-sm font-medium text-slate-700">Course Title <span class="text-red-500">*</span></label>
-                        <div class="mt-1">
-                            <input type="text" id="title" maxlength="200" @bind="CurrentCourse.Title" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Introduction to Blazor" />
-                        </div>
-                    </div>
-                    <div class="sm:col-span-6">
-                        <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
-                        <div class="mt-1">
-                            <textarea id="description" rows="4" @bind="CurrentCourse.Description" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Briefly describe what this course covers..."></textarea>
-                        </div>
-                    </div>
-                    <div class="sm:col-span-3">
-                        <label for="categoryId" class="block text-sm font-medium text-slate-700 font-semibold mb-1">Category <span class="text-red-500">*</span></label>
-                        <div class="mt-1 relative">
-                            @if (IsCategoriesLoading)
-                            {
-                                <div class="flex items-center space-x-2 text-sm text-slate-500 py-3">
-                                    <svg class="animate-spin h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                    </svg>
-                                    <span>Loading categories...</span>
-                                </div>
-                            }
-                            else if (CategoryErrorMessage != null)
-                            {
-                                <div class="text-sm text-red-600 py-3">
-                                    @CategoryErrorMessage
-                                </div>
-                            }
-                            else
-                            {
-                                <select id="categoryId" @bind="CurrentCourse.CategoryId" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors bg-white">
-                                    <option value="0">Select a category</option>
-                                    @foreach (var category in Categories)
-                                    {
-                                        <option value="@category.CategoryId">@category.CategoryName</option>
-                                    }
-                                </select>
-                            }
-                        </div>
-                    </div>
-
-                    <!-- File Upload Input -->
-                    <div class="sm:col-span-6 bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                        <label class="block text-sm font-semibold text-slate-900 mb-3">Course Thumbnail</label>
-                        <div class="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                            
-                            <!-- Image Preview Area -->
-                            <div class="flex-shrink-0">
-                                @if (!string.IsNullOrEmpty(ThumbnailPreviewUrl))
-                                {
-                                    <div class="text-xs text-slate-500 font-medium mb-1">New Selected Image Preview:</div>
-                                    <img src="@ThumbnailPreviewUrl" class="h-20 w-32 object-cover rounded-xl border border-slate-200 shadow-sm" />
-                                }
-                                else if (!string.IsNullOrEmpty(ExistingThumbnailUrl))
-                                {
-                                    <div class="text-xs text-slate-500 font-medium mb-1">Current Image:</div>
-                                    <img src="@($"{Http.BaseAddress?.ToString().TrimEnd('/')}{ExistingThumbnailUrl}")" class="h-20 w-32 object-cover rounded-xl border border-slate-200 shadow-sm" />
-                                    <div class="text-[10px] text-slate-400 mt-1 max-w-[128px] truncate">@System.IO.Path.GetFileName(ExistingThumbnailUrl)</div>
-                                }
-                                else
-                                {
-                                    <div class="text-xs text-slate-500 font-medium mb-1">No Image:</div>
-                                    <div class="h-20 w-32 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-semibold text-xs">
-                                        No Image
-                                    </div>
-                                }
-                            </div>
-                            
-                            <!-- File Pick Controls -->
-                            <div class="flex flex-col space-y-2 flex-grow">
-                                <label class="block text-xs font-semibold text-slate-700">Choose a new file</label>
-                                <InputFile OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.webp" class="text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors cursor-pointer" />
-                                <span class="text-[11px] text-slate-500">Allowed formats: JPG, JPEG, PNG, WebP (Max size: 5 MB).</span>
-                                
-                                @if (!string.IsNullOrEmpty(ThumbnailPreviewUrl) || !string.IsNullOrEmpty(ExistingThumbnailUrl))
-                                {
-                                    <button type="button" @onclick="RemoveImage" class="inline-flex items-center text-xs text-red-600 hover:text-red-800 font-medium transition-colors self-start mt-2">
-                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                        Remove Image
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
-                <button type="button" @onclick="HideForm" class="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">Cancel</button>
-                <button type="button" @onclick="SaveCourse" disabled="@IsSaving" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70 transition-colors">
-                    @if (IsSaving)
-                    {
-                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Saving...</span>
-                    }
-                    else
-                    {
-                        <span>Save Course</span>
-                    }
-                </button>
             </div>
         </div>
     }
@@ -207,16 +90,19 @@
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Category</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Image</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Status</th>
-                        <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
-                            <span class="sr-only">Actions</span>
-                        </th>
+                        @if (ShowModuleColumns)
+                        {
+                            <th scope="col" class="px-3 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Lessons</th>
+                            <th scope="col" class="px-3 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Quizzes</th>
+                        }
+                        <th scope="col" class="relative py-4 pl-3 pr-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pr-6 w-28">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
                     @if (IsLoading)
                     {
                         <tr>
-                            <td colspan="6" class="px-6 py-12">
+                            <td colspan="@(ShowModuleColumns ? 8 : 6)" class="px-6 py-12">
                                 <div class="flex justify-center">
                                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                 </div>
@@ -226,7 +112,7 @@
                     else if (Courses == null || !Courses.Any())
                     {
                         <tr>
-                            <td colspan="6" class="px-3 py-8">
+                            <td colspan="@(ShowModuleColumns ? 8 : 6)" class="px-3 py-8">
                                 <EmptyState Title="No courses found" Description="Get started by creating a new course.">
                                     <Icon>
                                         <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -266,34 +152,55 @@
                                     }
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @(course.DeleteFlag ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800")">@(course.DeleteFlag ? "Archived" : "Active")</span></td>
+                                @if (ShowModuleColumns)
+                                {
+                                <td class="whitespace-nowrap px-3 py-4 text-center text-sm">
+                                    @if (!course.DeleteFlag)
+                                    {
+                                        <AuthorizeView Policy="Permission:Lesson.Update">
+                                            <Authorized>
+                                                <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/lessons")' disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-900 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Manage Lessons">
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                    </svg>
+                                                    <span class="sr-only">Lessons</span>
+                                                </button>
+                                            </Authorized>
+                                            </AuthorizeView>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-slate-300 text-sm font-medium select-none" title="Archived course">&mdash;</span>
+                                        }
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-center text-sm">
+                                    @if (!course.DeleteFlag)
+                                    {
+                                        <AuthorizeView Policy="Permission:Quiz.Update">
+                                            <Authorized>
+                                                <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/quizzes")' disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Manage Quiz">
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                    </svg>
+                                                    <span class="sr-only">Quiz</span>
+                                                </button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-slate-300 text-sm font-medium select-none" title="Archived course">&mdash;</span>
+                                    }
+                                </td>
+                                }
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                    <div class="flex items-center justify-end space-x-3">
+                                    <div class="flex items-center justify-end gap-1">
                                         @if (!course.DeleteFlag)
                                         {
-                                            <AuthorizeView Policy="Permission:Lesson.Update">
-                                                <Authorized>
-                                                    <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/lessons")' disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-900 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Manage Lessons">
-                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                                        </svg>
-                                                        <span class="sr-only">Lessons</span>
-                                                    </button>
-                                                </Authorized>
-                                            </AuthorizeView>
-                                            <AuthorizeView Policy="Permission:Quiz.Update">
-                                                <Authorized>
-                                                    <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/quizzes")' disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Manage Quiz">
-                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                                        </svg>
-                                                        <span class="sr-only">Quiz</span>
-                                                    </button>
-                                                </Authorized>
-                                            </AuthorizeView>
                                             <AuthorizeView Policy="Permission:Course.Update">
                                                 <Authorized>
-                                                    <button @onclick="() => ShowEditForm(course)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
-                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{course.CourseId}/edit")' disabled="@(IsSaving || IsDeleting)" class="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition p-1.5 rounded-lg disabled:opacity-50" title="Edit">
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
                                                         <span class="sr-only">Edit</span>
@@ -302,11 +209,11 @@
                                             </AuthorizeView>
                                             <AuthorizeView Policy="Permission:Course.Delete">
                                                 <Authorized>
-                                                    <button @onclick="() => OpenArchive(course)" disabled="@(IsSaving || IsDeleting)" class="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded hover:bg-amber-50 disabled:opacity-50" title="Archive">
-                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <button @onclick="() => OpenArchive(course)" disabled="@(IsSaving || IsDeleting)" class="text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition p-1.5 rounded-lg disabled:opacity-50" title="Delete">
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                         </svg>
-                                                        <span class="sr-only">Archive</span>
+                                                        <span class="sr-only">Delete</span>
                                                     </button>
                                                 </Authorized>
                                             </AuthorizeView>
@@ -315,8 +222,8 @@
                                         {
                                             <AuthorizeView Policy="Permission:Course.Update">
                                                 <Authorized>
-                                                    <button @onclick="() => OpenArchive(course)" disabled="@(IsSaving || IsDeleting)" class="text-emerald-600 hover:text-emerald-800 transition-colors p-1 rounded hover:bg-emerald-50 disabled:opacity-50" title="Restore">
-                                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <button @onclick="() => OpenArchive(course)" disabled="@(IsSaving || IsDeleting)" class="text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition p-1.5 rounded-lg disabled:opacity-50" title="Restore">
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                         </svg>
                                                         <span class="sr-only">Restore</span>
@@ -332,66 +239,23 @@
                 </tbody>
             </table>
         </div>
-        @if (TotalCount > 0)
-        {
-            <div class="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
-                <div class="flex flex-1 justify-between sm:hidden">
-                    <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Previous</button>
-                    <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Next</button>
-                </div>
-                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-slate-700">
-                            Showing <span class="font-medium">@(((CurrentPage - 1) * PageSize) + 1)</span> to <span class="font-medium">@(Math.Min(CurrentPage * PageSize, TotalCount))</span> of <span class="font-medium">@TotalCount</span> results
-                        </p>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <select @bind="PageSizeStr" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1 pl-2 pr-8">
-                            <option value="10">10 / page</option>
-                            <option value="15">15 / page</option>
-                            <option value="25">25 / page</option>
-                            <option value="50">50 / page</option>
-                        </select>
-                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                            <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Previous</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
-                                Page @CurrentPage of @TotalPages
-                            </span>
-                            <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Next</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        }
     </div>
+
+    <Pagination CurrentPage="CurrentPage" TotalPages="TotalPages" TotalCount="TotalCount" PageSize="PageSize"
+                PageChanged="GoToPageAsync" PageSizeChanged="OnPageSizeChangedAsync" />
 </div>
 <ConfirmationModal IsVisible="@IsConfirmVisible" Title="@ConfirmTitle" Message="@ConfirmMessage" ConfirmText="@ConfirmText" IsDestructive="@(!ConfirmRestore)" OnConfirm="ConfirmStatusChange" OnCancel="CloseConfirmation" />
 
 @code {
     private List<CourseSummaryResponse> Courses = new();
     private List<CategoryResponse> Categories = new();
-    
+
     private bool IsLoading = true;
-    private bool IsCategoriesLoading = true;
     private string? ErrorMessage;
-    private string? CategoryErrorMessage;
-    
-    private bool IsFormVisible = false;
+
     private bool IsSaving = false;
     private bool IsDeleting = false;
-    
-    private int? EditingCourseId;
-    private CreateCourseRequest CurrentCourse = new();
+
     private bool IsConfirmVisible, ConfirmRestore;
     private CourseSummaryResponse? PendingCourse;
     private string ConfirmTitle => ConfirmRestore ? "Restore Course?" : "Archive Course?";
@@ -399,6 +263,9 @@
     private string ConfirmMessage => ConfirmRestore ? $"Are you sure you want to restore \"{PendingCourse?.Title}\"?" : $"Are you sure you want to archive \"{PendingCourse?.Title}\"? The course will no longer be available to students. You can restore it later.";
 
     private bool? StatusFilter = false;
+
+    // Lessons/Quizzes columns are shown for Active and All views (hidden only for Archived)
+    private bool ShowModuleColumns => StatusFilter != true;
     private string StatusFilterString
     {
         get => StatusFilter switch { false => "false", true => "true", _ => "null" };
@@ -460,47 +327,20 @@
     private int TotalPages = 1;
     private int TotalCount = 0;
 
-    private string PageSizeStr
+    private Task GoToPageAsync(int page)
     {
-        get => PageSize.ToString();
-        set
-        {
-            if (int.TryParse(value, out int size) && size != PageSize)
-            {
-                PageSize = size;
-                CurrentPage = 1;
-                _ = LoadCourses();
-            }
-        }
+        if (page < 1 || page > TotalPages || page == CurrentPage) return Task.CompletedTask;
+        CurrentPage = page;
+        return LoadCourses();
     }
 
-    private Task PreviousPage()
+    private Task OnPageSizeChangedAsync(int pageSize)
     {
-        if (CurrentPage > 1)
-        {
-            CurrentPage--;
-            return LoadCourses();
-        }
-        return Task.CompletedTask;
+        if (pageSize == PageSize) return Task.CompletedTask;
+        PageSize = pageSize;
+        CurrentPage = 1;
+        return LoadCourses();
     }
-
-    private Task NextPage()
-    {
-        if (CurrentPage < TotalPages)
-        {
-            CurrentPage++;
-            return LoadCourses();
-        }
-        return Task.CompletedTask;
-    }
-
-    // File Upload Local State
-    private string? ThumbnailPreviewUrl;
-    private string? ExistingThumbnailUrl;
-    private byte[]? UploadedFileBytes;
-    private string? UploadedFileName;
-    private string? UploadedFileMimeType;
-    private bool ShouldRemoveThumbnail = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -536,8 +376,6 @@
 
     private async Task LoadCategories()
     {
-        IsCategoriesLoading = true;
-        CategoryErrorMessage = null;
         try
         {
             var result = await CategoryClient.GetCategoriesAsync();
@@ -546,13 +384,9 @@
                 Categories = result.Items.ToList();
             }
         }
-        catch (Exception ex)
+        catch
         {
-            CategoryErrorMessage = "Failed to load categories. " + ex.Message;
-        }
-        finally
-        {
-            IsCategoriesLoading = false;
+            // Category names are a display fallback only; the table still renders.
         }
     }
 
@@ -562,172 +396,9 @@
         return category?.CategoryName ?? $"ID: {categoryId}";
     }
 
-    private void ShowCreateForm()
-    {
-        EditingCourseId = null;
-        CurrentCourse = new CreateCourseRequest { CategoryId = 0 };
-        ThumbnailPreviewUrl = null;
-        ExistingThumbnailUrl = null;
-        UploadedFileBytes = null;
-        UploadedFileName = null;
-        UploadedFileMimeType = null;
-        ShouldRemoveThumbnail = false;
-        IsFormVisible = true;
-        ErrorMessage = null;
-    }
-
-    private void ShowEditForm(CourseSummaryResponse course)
-    {
-        EditingCourseId = course.CourseId;
-        CurrentCourse = new CreateCourseRequest
-        {
-            Title = course.Title,
-            Description = course.Description,
-            CategoryId = course.CategoryId
-        };
-        ThumbnailPreviewUrl = null;
-        ExistingThumbnailUrl = course.ThumbnailUrl;
-        UploadedFileBytes = null;
-        UploadedFileName = null;
-        UploadedFileMimeType = null;
-        ShouldRemoveThumbnail = false;
-        IsFormVisible = true;
-        ErrorMessage = null;
-    }
-
-    private void HideForm()
-    {
-        IsFormVisible = false;
-    }
-
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
-    {
-        ErrorMessage = null;
-        var file = e.File;
-        if (file == null) return;
-
-        // Size check (5MB)
-        if (file.Size > 5 * 1024 * 1024)
-        {
-            ErrorMessage = "Image file size must be less than 5 MB.";
-            return;
-        }
-
-        // Extension check
-        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
-        var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        if (!allowed.Contains(extension))
-        {
-            ErrorMessage = "Only .jpg, .jpeg, .png, and .webp images are allowed.";
-            return;
-        }
-
-        // Content type check
-        var allowedMimes = new[] { "image/jpeg", "image/png", "image/webp" };
-        if (!allowedMimes.Contains(file.ContentType.ToLowerInvariant()))
-        {
-            ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.";
-            return;
-        }
-
-        try
-        {
-            using var stream = file.OpenReadStream(5 * 1024 * 1024);
-            var buffer = new byte[file.Size];
-            await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
-
-            UploadedFileBytes = buffer;
-            UploadedFileName = file.Name;
-            UploadedFileMimeType = file.ContentType;
-            ShouldRemoveThumbnail = false;
-
-            // Preview local file in browser immediately
-            ThumbnailPreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Error reading image file: " + ex.Message;
-        }
-    }
-
-    private void RemoveImage()
-    {
-        UploadedFileBytes = null;
-        UploadedFileName = null;
-        UploadedFileMimeType = null;
-        ThumbnailPreviewUrl = null;
-        
-        if (EditingCourseId.HasValue)
-        {
-            ShouldRemoveThumbnail = true;
-            ExistingThumbnailUrl = null;
-        }
-    }
-
     private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
     {
         return await ApiResponseHelper.GetErrorMessageAsync(response);
-    }
-
-    private async Task SaveCourse()
-    {
-        if (string.IsNullOrWhiteSpace(CurrentCourse.Title))
-        {
-            ErrorMessage = "Title is required.";
-            return;
-        }
-
-        if (CurrentCourse.CategoryId <= 0)
-        {
-            ErrorMessage = "Please select a category.";
-            return;
-        }
-
-        IsSaving = true;
-        ErrorMessage = null;
-        try
-        {
-            HttpResponseMessage response;
-            if (EditingCourseId.HasValue)
-            {
-                var updateRequest = new UpdateCourseRequest
-                {
-                    Title = CurrentCourse.Title,
-                    Description = CurrentCourse.Description,
-                    CategoryId = CurrentCourse.CategoryId,
-                    ThumbnailBytes = UploadedFileBytes,
-                    ThumbnailFileName = UploadedFileName,
-                    ThumbnailMimeType = UploadedFileMimeType,
-                    RemoveThumbnail = ShouldRemoveThumbnail
-                };
-                response = await CourseClient.UpdateCourseAsync(EditingCourseId.Value, updateRequest);
-            }
-            else
-            {
-                CurrentCourse.ThumbnailBytes = UploadedFileBytes;
-                CurrentCourse.ThumbnailFileName = UploadedFileName;
-                CurrentCourse.ThumbnailMimeType = UploadedFileMimeType;
-                response = await CourseClient.CreateCourseAsync(CurrentCourse);
-            }
-
-            if (response.IsSuccessStatusCode)
-            {
-                IsFormVisible = false;
-                await LoadCourses();
-            }
-            else
-            {
-                ErrorMessage = await GetApiErrorMessage(response);
-            }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Error saving course: " + ex.Message;
-        }
-        finally
-        {
-            IsSaving = false;
-        }
     }
 
     private void OpenArchive(CourseSummaryResponse course) { PendingCourse = course; ConfirmRestore = course.DeleteFlag; IsConfirmVisible = true; }

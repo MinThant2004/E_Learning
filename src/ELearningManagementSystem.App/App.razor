@@ -1,7 +1,7 @@
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Components.Layout.MainLayout)">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Components.Layout.UserLayout)">
                 <NotAuthorized>
                     @if (context.User.Identity is null || !context.User.Identity.IsAuthenticated)
                     {
@@ -17,7 +17,7 @@
         </Found>
         <NotFound>
             <PageTitle>Not Found</PageTitle>
-            <LayoutView Layout="@typeof(Components.Layout.MainLayout)">
+            <LayoutView Layout="@typeof(Components.Layout.UserLayout)">
                 <p role="alert">Sorry, the page you requested was not found.</p>
             </LayoutView>
         </NotFound>

@@ -1,0 +1,236 @@
+@inherits LayoutComponentBase
+@inject AuthApiService AuthApiService
+@inject NavigationManager Navigation
+@inject ILogger<UserLayout> Logger
+@using ELearningManagementSystem.App.Components.Shared
+@implements IDisposable
+
+<div class="min-h-screen bg-slate-50 font-sans flex flex-col">
+    @* ── Student/User Top Navbar Layout ──────────────────────────────────── *@
+    <header class="sticky top-0 z-20 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 gap-4 flex-shrink-0">
+        <div class="flex items-center gap-4 sm:gap-8">
+            <a href="/" class="flex items-center gap-2 sm:gap-3 group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500
+                            flex items-center justify-center shadow-md shadow-indigo-500/20
+                            group-hover:scale-105 group-hover:shadow-indigo-500/40 transition-all duration-300 flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                              d="M12 14l9-5-9-5-9 5 9 5z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                              d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055
+                                 a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                    </svg>
+                </div>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-sm font-extrabold text-slate-900 tracking-tight leading-none">EduSphere</span>
+                    <span class="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">LMS Portal</span>
+                </div>
+            </a>
+
+            @* Nav Links - Always visible, responsive margins *@
+            <nav class="flex items-center gap-1 sm:gap-1.5">
+                <NavLink href="/dashboard" Match="NavLinkMatch.All" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors" ActiveClass="bg-indigo-50 text-indigo-600 font-semibold">
+                    Dashboard
+                </NavLink>
+                <NavLink href="/courses" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors" ActiveClass="bg-indigo-50 text-indigo-600 font-semibold">
+                    Courses
+                </NavLink>
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink href="/my-courses" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors" ActiveClass="bg-indigo-50 text-indigo-600 font-semibold">
+                            My Courses
+                        </NavLink>
+                        <NavLink href="/course-exams" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors" ActiveClass="bg-indigo-50 text-indigo-600 font-semibold">
+                            Course Exams
+                        </NavLink>
+                        <NavLink href="/my-certificates" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors" ActiveClass="bg-indigo-50 text-indigo-600 font-semibold">
+                            My Certificates
+                        </NavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
+        </div>
+
+        @* Right Side Profile *@
+        <div class="flex items-center gap-4">
+            <AuthorizeView>
+                <Authorized>
+                    <div class="relative flex items-center gap-3">
+                        <!-- Notification Bell Icon -->
+                        <NotificationBell />
+                        @* For users with Admin/SystemAdmin roles, show a quick '⚡ Admin Portal' pill button *@
+                        <AuthorizeView Roles="System Administrator, Administrator" Context="adminPillCtx">
+                            <Authorized>
+                                <a href="/admin/dashboard" class="inline-flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-600/30">
+                                    <span>⚡ Admin Portal</span>
+                                </a>
+                            </Authorized>
+                        </AuthorizeView>
+
+                        @* User Full Name + Hierarchical Role Badge *@
+                        <div class="hidden sm:flex flex-col items-end">
+                            <span class="text-sm font-semibold text-slate-800 leading-tight">
+                                @context.User.Identity?.Name
+                            </span>
+                            <span class="@GetRoleBadgeClass(context.User)">
+                                @GetDisplayRole(context.User)
+                            </span>
+                        </div>
+
+                        @* Avatar Button *@
+                        <button @onclick="ToggleUserMenu"
+                                class="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-indigo-300 transition-all focus:outline-none"
+                                aria-expanded="@_userMenuOpen" aria-label="User menu">
+                            <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600
+                                        text-white flex items-center justify-center font-bold text-sm
+                                        shadow ring-2 ring-white">
+                                @(context.User.Identity?.Name?.FirstOrDefault() ?? 'U')
+                            </div>
+                            <svg class="h-4 w-4 text-slate-400 transition-transform duration-200 @(_userMenuOpen ? "rotate-180" : "")"
+                                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        @* Dropdown Menu *@
+                        @if (_userMenuOpen)
+                        {
+                            <div class="fixed inset-0 z-40" @onclick="CloseUserMenu"></div>
+                            <div class="absolute right-0 top-12 w-56 rounded-2xl bg-white border border-slate-100
+                                        shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+
+                                @* Mobile view: Name and role badge inside dropdown *@
+                                <div class="sm:hidden px-4 py-2.5 border-b border-slate-100/60">
+                                    <p class="text-sm font-semibold text-slate-800">@context.User.Identity?.Name</p>
+                                    <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mt-0.5">
+                                        @GetDisplayRole(context.User)
+                                    </p>
+                                </div>
+
+                                <a href="/account/change-password" @onclick="CloseUserMenu"
+                                   class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                                    <svg class="w-5 h-5 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    Change Password
+                                </a>
+
+                                <div class="border-t border-slate-100 my-1"></div>
+
+                                <button type="button" @onclick="TriggerLogout"
+                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
+                                    <svg class="w-5 h-5 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                    </svg>
+                                    Logout
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="flex items-center gap-2">
+                        <a href="/login" class="text-sm font-semibold text-slate-600 hover:text-indigo-600 px-4 py-2 rounded-xl hover:bg-slate-50 transition-all">Log in</a>
+                        <a href="/register" class="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 rounded-full transition-all shadow hover:shadow-indigo-600/30">Sign up</a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </header>
+
+    <main class="flex-1 px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
+        <div class="max-w-7xl mx-auto w-full">
+            @Body
+        </div>
+    </main>
+</div>
+
+@* ── Logout Confirmation Modal ────────────────────────────────────────── *@
+<ConfirmationModal
+    IsVisible="@_showLogoutConfirm"
+    Title="Confirm Logout"
+    Message="Are you sure you want to log out?"
+    ConfirmText="Logout"
+    CancelText="Cancel"
+    IsDestructive="true"
+    OnConfirm="ConfirmLogout"
+    OnCancel="CancelLogout" />
+
+@code {
+    private bool _userMenuOpen      = false;
+    private bool _showLogoutConfirm = false;
+    private bool _isLoggingOut      = false;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _userMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
+    private void CloseUserMenu()  => _userMenuOpen = false;
+
+    private void TriggerLogout()
+    {
+        _userMenuOpen      = false;
+        _showLogoutConfirm = true;
+    }
+
+    private void CancelLogout()
+    {
+        _showLogoutConfirm = false;
+        _userMenuOpen      = false;
+    }
+
+    private async Task ConfirmLogout()
+    {
+        if (_isLoggingOut) return;
+
+        _isLoggingOut      = true;
+        _userMenuOpen      = false;
+        _showLogoutConfirm = false;
+
+        try
+        {
+            await AuthApiService.LogoutImmediateAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during logout.");
+        }
+        finally
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            _isLoggingOut = false;
+        }
+    }
+
+    private static string GetDisplayRole(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("System Administrator")) return "System Administrator";
+        if (user.IsInRole("Administrator"))      return "Administrator";
+        if (user.IsInRole("Student"))    return "Student";
+        return string.Empty;
+    }
+
+    private static string GetRoleBadgeClass(System.Security.Claims.ClaimsPrincipal user)
+    {
+        const string B = "inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold w-fit ";
+        if (user.IsInRole("System Administrator")) return B + "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20";
+        if (user.IsInRole("Administrator"))      return B + "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
+        if (user.IsInRole("Student"))    return B + "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20";
+        return "hidden";
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

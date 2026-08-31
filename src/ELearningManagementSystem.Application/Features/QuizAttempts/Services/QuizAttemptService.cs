@@ -76,7 +76,8 @@ public class QuizAttemptService : IQuizAttemptService
                 Options = q.QuestionOptions.Select(o => new StudentQuizOptionResponse
                 {
                     OptionId = o.OptionId,
-                    OptionText = o.OptionText
+                    OptionText = o.OptionText,
+                    IsCorrect = o.IsCorrect
                 }).ToList()
             }).OrderBy(q => q.DisplayOrder).ToList()
         };

@@ -1,0 +1,35 @@
+@page "/admin/reports"
+
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.HasClaim("permission", "EnrollmentHistory.Read"))
+        {
+            NavManager.NavigateTo("/admin/reports/enrollments", replace: true);
+        }
+        else if (user.HasClaim("permission", "CoursePerformance.Read"))
+        {
+            NavManager.NavigateTo("/admin/reports/course-performance", replace: true);
+        }
+        else if (user.HasClaim("permission", "QuizPerformance.Read"))
+        {
+            NavManager.NavigateTo("/admin/reports/quiz-performance", replace: true);
+        }
+        else if (user.HasClaim("permission", "AuditLog.Read"))
+        {
+            NavManager.NavigateTo("/admin/reports/audit-activity", replace: true);
+        }
+        else
+        {
+            NavManager.NavigateTo("/dashboard", replace: true);
+        }
+    }
+}

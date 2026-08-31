@@ -12,30 +12,30 @@
 
 <PageTitle>Manage Lessons - @CourseTitle</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
     
     <!-- Navigation Back Link -->
-    <button @onclick="GoBackToCourses" class="mb-6 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
-        <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-        </svg>
+    <button @onclick="GoBackToCourses" class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
         Back to Courses
     </button>
 
-    <PageHeader Title="@($"Manage Lessons: {CourseTitle}")" Description="Add, edit, reorder, and remove lessons for this course.">
-        <ActionTemplate>
-            <AuthorizeView Policy="Permission:Lesson.Create">
-                <Authorized>
-                    <button @onclick="ShowCreateForm" type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors w-full sm:w-auto disabled:opacity-50">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Lesson
-                    </button>
-                </Authorized>
-            </AuthorizeView>
-        </ActionTemplate>
-    </PageHeader>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Manage Lessons: @CourseTitle</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">Add, edit, reorder, and remove lessons for this course.</p>
+        </div>
+        <AuthorizeView Policy="Permission:Lesson.Create">
+            <Authorized>
+                <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{CourseId}/lessons/create")' type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Lesson
+                </button>
+            </Authorized>
+        </AuthorizeView>
+    </div>
 
     @if (ErrorMessage != null)
     {
@@ -60,54 +60,6 @@
                         </svg>
                     </button>
                 </div>
-            </div>
-        </div>
-    }
-
-    @if (IsFormVisible)
-    {
-        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <h3 class="text-lg leading-6 font-semibold text-slate-900">@(EditingLessonId.HasValue ? "Edit Lesson" : "Create New Lesson")</h3>
-            </div>
-            <div class="px-6 py-6 sm:p-8">
-                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div class="sm:col-span-4">
-                        <label for="title" class="block text-sm font-medium text-slate-700">Lesson Title <span class="text-red-500">*</span></label>
-                        <div class="mt-1">
-                            <input type="text" id="title" maxlength="200" @bind="CurrentLesson.Title" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Setting up your workspace" />
-                        </div>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label for="order" class="block text-sm font-medium text-slate-700">Display Order (Position) <span class="text-xs text-slate-500">(1-based, automatic shift)</span></label>
-                        <div class="mt-1">
-                            <input type="number" min="1" id="order" @bind="CurrentLesson.DisplayOrder" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Leave empty for appending" />
-                        </div>
-                    </div>
-                    <div class="sm:col-span-6">
-                        <label for="content" class="block text-sm font-medium text-slate-700">Lesson Content <span class="text-red-500">*</span></label>
-                        <div class="mt-1">
-                            <textarea id="content" rows="12" @bind="CurrentLesson.Content" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors font-mono" placeholder="Write lesson content here... Markdown/text support."></textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
-                <button type="button" @onclick="HideForm" class="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">Cancel</button>
-                <button type="button" @onclick="SaveLesson" disabled="@IsSaving" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70 transition-colors">
-                    @if (IsSaving)
-                    {
-                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Saving...</span>
-                    }
-                    else
-                    {
-                        <span>Save Lesson</span>
-                    }
-                </button>
             </div>
         </div>
     }
@@ -140,9 +92,7 @@
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Lesson Order</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lesson Title</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Status</th>
-                        <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
-                            <span class="sr-only">Actions</span>
-                        </th>
+                        <th scope="col" class="relative py-4 pl-3 pr-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pr-6 w-32">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
@@ -193,7 +143,7 @@
                                         {
                                             <AuthorizeView Policy="Permission:Lesson.Update">
                                                 <Authorized>
-                                                    <button @onclick="() => ShowEditForm(lesson)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
+                                                    <button @onclick='() => NavManager.NavigateTo($"/admin/courses/{CourseId}/lessons/{lesson.LessonId}/edit")' disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
@@ -205,7 +155,7 @@
                                                 <Authorized>
                                                     <button @onclick="() => OpenArchive(lesson)" disabled="@(IsSaving || IsDeleting)" class="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded hover:bg-amber-50 disabled:opacity-50" title="Archive">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 12h4" />
                                                         </svg>
                                                         <span class="sr-only">Archive</span>
                                                     </button>
@@ -233,48 +183,10 @@
                 </tbody>
             </table>
         </div>
-        @if (TotalCount > 0)
-        {
-            <div class="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
-                <div class="flex flex-1 justify-between sm:hidden">
-                    <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Previous</button>
-                    <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Next</button>
-                </div>
-                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-slate-700">
-                            Showing <span class="font-medium">@(((CurrentPage - 1) * PageSize) + 1)</span> to <span class="font-medium">@(Math.Min(CurrentPage * PageSize, TotalCount))</span> of <span class="font-medium">@TotalCount</span> results
-                        </p>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <select @bind="PageSizeStr" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1 pl-2 pr-8">
-                            <option value="10">10 / page</option>
-                            <option value="15">15 / page</option>
-                            <option value="25">25 / page</option>
-                            <option value="50">50 / page</option>
-                        </select>
-                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                            <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Previous</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
-                                Page @CurrentPage of @TotalPages
-                            </span>
-                            <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Next</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        }
     </div>
+
+    <Pagination CurrentPage="CurrentPage" TotalPages="TotalPages" TotalCount="TotalCount" PageSize="PageSize"
+                PageChanged="GoToPageAsync" PageSizeChanged="OnPageSizeChangedAsync" />
 </div>
 <ConfirmationModal IsVisible="@IsConfirmVisible" Title="@ConfirmTitle" Message="@ConfirmMessage" ConfirmText="@ConfirmText" IsDestructive="@(!ConfirmRestore)" OnConfirm="ConfirmStatusChange" OnCancel="CloseConfirmation" />
 
@@ -287,13 +199,10 @@
     
     private bool IsLoading = true;
     private string? ErrorMessage;
-    
-    private bool IsFormVisible = false;
+
     private bool IsSaving = false;
     private bool IsDeleting = false;
-    
-    private int? EditingLessonId;
-    private CreateLessonRequest CurrentLesson = new();
+
     private bool IsConfirmVisible, ConfirmRestore;
     private LessonSummaryResponse? PendingLesson;
     private string ConfirmTitle => ConfirmRestore ? "Restore Lesson?" : "Archive Lesson?";
@@ -362,38 +271,19 @@
     private int TotalPages = 1;
     private int TotalCount = 0;
 
-    private string PageSizeStr
+    private Task GoToPageAsync(int page)
     {
-        get => PageSize.ToString();
-        set
-        {
-            if (int.TryParse(value, out int size) && size != PageSize)
-            {
-                PageSize = size;
-                CurrentPage = 1;
-                _ = LoadLessons();
-            }
-        }
+        if (page < 1 || page > TotalPages || page == CurrentPage) return Task.CompletedTask;
+        CurrentPage = page;
+        return LoadLessons();
     }
 
-    private Task PreviousPage()
+    private Task OnPageSizeChangedAsync(int pageSize)
     {
-        if (CurrentPage > 1)
-        {
-            CurrentPage--;
-            return LoadLessons();
-        }
-        return Task.CompletedTask;
-    }
-
-    private Task NextPage()
-    {
-        if (CurrentPage < TotalPages)
-        {
-            CurrentPage++;
-            return LoadLessons();
-        }
-        return Task.CompletedTask;
+        if (pageSize == PageSize) return Task.CompletedTask;
+        PageSize = pageSize;
+        CurrentPage = 1;
+        return LoadLessons();
     }
 
     protected override async Task OnInitializedAsync()
@@ -441,122 +331,6 @@
         {
             IsLoading = false;
             StateHasChanged();
-        }
-    }
-
-    private void ShowCreateForm()
-    {
-        EditingLessonId = null;
-        CurrentLesson = new CreateLessonRequest 
-        { 
-            CourseId = CourseId,
-            DisplayOrder = Lessons.Any() ? Lessons.Max(l => l.DisplayOrder) + 1 : 1
-        };
-        IsFormVisible = true;
-        ErrorMessage = null;
-    }
-
-    private async void ShowEditForm(LessonSummaryResponse lesson)
-    {
-        EditingLessonId = lesson.LessonId;
-        IsFormVisible = true;
-        IsSaving = true;
-        ErrorMessage = null;
-        StateHasChanged();
-
-        try
-        {
-            var detail = await LessonClient.GetLessonAsync(CourseId, lesson.LessonId);
-            if (detail != null)
-            {
-                CurrentLesson = new CreateLessonRequest
-                {
-                    CourseId = CourseId,
-                    Title = detail.Title,
-                    Content = detail.Content,
-                    DisplayOrder = detail.DisplayOrder
-                };
-            }
-            else
-            {
-                ErrorMessage = "Could not load lesson details.";
-                IsFormVisible = false;
-            }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Error loading details: " + ex.Message;
-            IsFormVisible = false;
-        }
-        finally
-        {
-            IsSaving = false;
-            StateHasChanged();
-        }
-    }
-
-    private void HideForm()
-    {
-        IsFormVisible = false;
-    }
-
-    private async Task SaveLesson()
-    {
-        if (string.IsNullOrWhiteSpace(CurrentLesson.Title))
-        {
-            ErrorMessage = "Title is required.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(CurrentLesson.Content))
-        {
-            ErrorMessage = "Content is required.";
-            return;
-        }
-
-        if (CurrentLesson.DisplayOrder < 1)
-        {
-            ErrorMessage = "Display Order must be a positive integer.";
-            return;
-        }
-
-        IsSaving = true;
-        ErrorMessage = null;
-        try
-        {
-            HttpResponseMessage response;
-            if (EditingLessonId.HasValue)
-            {
-                var updateRequest = new UpdateLessonRequest
-                {
-                    Title = CurrentLesson.Title,
-                    Content = CurrentLesson.Content,
-                    DisplayOrder = CurrentLesson.DisplayOrder
-                };
-                response = await LessonClient.UpdateLessonAsync(CourseId, EditingLessonId.Value, updateRequest);
-            }
-            else
-            {
-                response = await LessonClient.CreateLessonAsync(CourseId, CurrentLesson);
-            }
-
-            if (response.IsSuccessStatusCode)
-            {
-                IsFormVisible = false;
-                await LoadLessons();
-            }
-            else
-            {
-                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
-            }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Error saving lesson: " + ex.Message;
-        }
-        finally
-        {
-            IsSaving = false;
         }
     }
 

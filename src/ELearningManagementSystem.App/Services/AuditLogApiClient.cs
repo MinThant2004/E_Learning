@@ -52,4 +52,13 @@ public class ClientAuditLogResponse
     public string TableName { get; set; } = string.Empty;
     public int RecordId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? RecordName { get; set; }
+    public List<ClientAuditLogChange>? Changes { get; set; }
+}
+
+public class ClientAuditLogChange
+{
+    public string Field { get; set; } = string.Empty;
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
 }

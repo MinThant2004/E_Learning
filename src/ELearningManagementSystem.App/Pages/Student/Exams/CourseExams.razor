@@ -1,0 +1,358 @@
+@page "/course-exams"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
+@using ELearningManagementSystem.App.Components.Exams
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ExamPaymentApiClient PaymentApiClient
+@inject NavigationManager NavManager
+
+<PageTitle>Course Exams - EduSphere</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <PageHeader Title="Course Certification Exams"
+                Description="Take paid certification exams for your completed courses to earn official certificates.">
+    </PageHeader>
+
+    <!-- Global Notification Banner (System Notification UX) -->
+    @if (NotificationBannerMessage != null)
+    {
+        <div class="p-4 rounded-2xl shadow-sm border flex items-start justify-between gap-4 transition-all @(NotificationType == "success" ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-amber-50 border-amber-200 text-amber-900")">
+            <div class="flex items-start gap-3">
+                <div class="p-2 rounded-xl text-lg @(NotificationType == "success" ? "bg-emerald-100" : "bg-amber-100")">
+                    @(NotificationType == "success" ? "🎉" : "⚠️")
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm">@NotificationTitle</h4>
+                    <p class="text-xs mt-0.5 font-medium">@NotificationBannerMessage</p>
+                </div>
+            </div>
+            <button @onclick="DismissNotification" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+        </div>
+    }
+
+    <!-- Content -->
+    @if (IsLoading)
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+        </div>
+    }
+    else if (AvailableExams == null || !AvailableExams.Any())
+    {
+        <EmptyState Title="No Available Course Exams"
+                    Description="Course exams unlock automatically after you complete all active lessons and pass the free quiz for a course.">
+            <ActionTemplate>
+                <button @onclick='() => NavManager.NavigateTo("/courses")'
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Browse Courses
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            @foreach (var exam in AvailableExams)
+            {
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+                                @exam.CourseTitle
+                            </span>
+
+                            <!-- Status Badge -->
+                            <span class="px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 @GetStatusBadgeClass(exam.PaymentStatus)">
+                                <span class="w-2 h-2 rounded-full @GetStatusDotClass(exam.PaymentStatus)"></span>
+                                <span>@GetStatusLabel(exam.PaymentStatus)</span>
+                            </span>
+                        </div>
+
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900 leading-snug">@exam.ExamTitle</h3>
+                            @if (!string.IsNullOrEmpty(exam.Description))
+                            {
+                                <p class="text-xs font-medium text-slate-500 mt-1 line-clamp-2">@exam.Description</p>
+                            }
+                        </div>
+
+                        <!-- Details Grid -->
+                        <div class="grid grid-cols-3 gap-2 py-3 px-3.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-700">
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block">Exam Fee</span>
+                                <span class="font-black text-indigo-600 text-sm">@exam.ExamFee.ToString("N0") MMK</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block">Duration</span>
+                                <span class="font-bold text-slate-800">@exam.DurationMinutes Mins</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase block">Pass Score</span>
+                                <span class="font-bold text-slate-800">@exam.PassingScore%</span>
+                            </div>
+                        </div>
+
+                        <!-- Rejection Note Banner -->
+                        @if (exam.PaymentStatus == "Rejected" && !string.IsNullOrEmpty(exam.RejectionReason))
+                        {
+                            <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium space-y-1">
+                                <div class="font-bold flex items-center gap-1">
+                                    <span>⚠️ Admin Rejection Note:</span>
+                                </div>
+                                <p>@exam.RejectionReason</p>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="pt-3 border-t border-slate-100">
+                        @if (exam.PaymentStatus == "InProgress")
+                        {
+                            <button @onclick="() => StartExam(exam.ExamId)"
+                                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Continue Exam
+                            </button>
+                        }
+                        else if (exam.PaymentStatus == "Expired")
+                        {
+                            <button @onclick="() => StartExam(exam.ExamId)"
+                                    class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Submit & View Result
+                            </button>
+                        }
+                        else if (exam.PaymentStatus == "Submitted")
+                        {
+                            if (exam.LastAttemptPassed == false)
+                            {
+                                <div class="flex flex-col gap-2">
+                                    <button @onclick="() => OpenPaymentModal(exam)"
+                                            class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Retake Exam (@exam.ExamFee.ToString("N0") MMK)
+                                    </button>
+                                    <button @onclick="() => ViewResult(exam.ActiveAttemptId)"
+                                            class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                        <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        View Result
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button @onclick="() => ViewResult(exam.ActiveAttemptId)"
+                                        class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    View Result
+                                </button>
+                            }
+                        }
+                        else if (exam.PaymentStatus == "Approved" && exam.CanTakeExam)
+                        {
+                            <button @onclick="() => StartExam(exam.ExamId)"
+                                    class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Start Exam Now
+                            </button>
+                        }
+                        else if (exam.PaymentStatus == "Pending")
+                        {
+                            <div class="w-full py-2.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-xl text-xs text-center flex items-center justify-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                <span>Payment Under Admin Review...</span>
+                            </div>
+                        }
+                        else if (exam.PaymentStatus == "Rejected")
+                        {
+                            <button @onclick="() => OpenPaymentModal(exam)"
+                                    class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Re-Submit Payment
+                            </button>
+                        }
+                        else if (exam.PaymentStatus == "PrerequisiteRequired")
+                        {
+                            <button @onclick='() => NavManager.NavigateTo($"/courses/{exam.CourseId}")'
+                                    class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                Complete Course Lessons First 🔒
+                            </button>
+                        }
+                        else if (exam.PaymentStatus == "NoExamCreated")
+                        {
+                            <button @onclick='() => NavManager.NavigateTo($"/courses/{exam.CourseId}")'
+                                    class="w-full py-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-medium rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>No Exam Created Yet &middot; View Course</span>
+                            </button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => OpenPaymentModal(exam)"
+                                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                Pay Exam Fee (@exam.ExamFee.ToString("N0") MMK)
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Modal: Pay Exam Fee -->
+<PaymentModal IsOpen="IsPaymentModalOpen"
+              ExamStatus="SelectedExam"
+              OnPaymentSubmitted="HandlePaymentSubmitted"
+              OnClose="() => IsPaymentModalOpen = false" />
+
+@code {
+    private List<StudentCourseExamStatusResponse>? AvailableExams;
+    private bool IsLoading = true;
+    private bool IsPaymentModalOpen = false;
+    private StudentCourseExamStatusResponse? SelectedExam;
+
+    // System Notification State
+    private string? NotificationTitle;
+    private string? NotificationBannerMessage;
+    private string NotificationType = "info";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExams();
+    }
+
+    private async Task LoadExams()
+    {
+        IsLoading = true;
+        try
+        {
+            AvailableExams = await PaymentApiClient.GetMyAvailableExamsAsync();
+
+            // Check if any exam has status updates to notify the user on screen
+            var approvedExam = AvailableExams?.FirstOrDefault(e => e.PaymentStatus == "Approved" && e.CanTakeExam);
+            var rejectedExam = AvailableExams?.FirstOrDefault(e => e.PaymentStatus == "Rejected");
+
+            if (approvedExam != null)
+            {
+                NotificationTitle = "Payment Approved! 🎉";
+                NotificationBannerMessage = $"Your payment for '{approvedExam.ExamTitle}' has been verified. You can now take your exam!";
+                NotificationType = "success";
+            }
+            else if (rejectedExam != null)
+            {
+                NotificationTitle = "Payment Attention Needed ⚠️";
+                NotificationBannerMessage = $"Your payment for '{rejectedExam.ExamTitle}' was rejected. Please click 'Re-Submit Payment' to update your receipt.";
+                NotificationType = "warning";
+            }
+        }
+        catch
+        {
+            // Non-critical
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OpenPaymentModal(StudentCourseExamStatusResponse exam)
+    {
+        SelectedExam = exam;
+        IsPaymentModalOpen = true;
+    }
+
+    private async Task HandlePaymentSubmitted()
+    {
+        IsPaymentModalOpen = false;
+        NotificationTitle = "Payment Submitted! 📥";
+        NotificationBannerMessage = "Your payment details have been submitted and are under review by the Admin.";
+        NotificationType = "info";
+
+        await LoadExams();
+    }
+
+    private void StartExam(int examId)
+    {
+        // Phase 25 Exam Taking route
+        NavManager.NavigateTo($"/course-exams/{examId}/take");
+    }
+
+    private void ViewResult(int? attemptId)
+    {
+        if (attemptId.HasValue)
+        {
+            NavManager.NavigateTo($"/course-exams/attempts/{attemptId.Value}/result");
+        }
+    }
+
+    private void DismissNotification()
+    {
+        NotificationBannerMessage = null;
+    }
+
+    private string GetStatusLabel(string status) => status switch
+    {
+        "Approved" => "Unlocked ✅",
+        "InProgress" => "In Progress ⏱️",
+        "Submitted" => "Completed ✅",
+        "Expired" => "Time Expired ⏳",
+        "Pending" => "Under Review ⏳",
+        "Rejected" => "Rejected ❌",
+        "PrerequisiteRequired" => "Course Incomplete 🔒",
+        "NoExamCreated" => "No Exam Yet ℹ️",
+        _ => "Not Paid"
+    };
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Approved" => "bg-emerald-50 text-emerald-700 border-emerald-200",
+        "InProgress" => "bg-indigo-50 text-indigo-700 border-indigo-200",
+        "Submitted" => "bg-emerald-50 text-emerald-700 border-emerald-200",
+        "Expired" => "bg-amber-50 text-amber-700 border-amber-200",
+        "Pending" => "bg-amber-50 text-amber-700 border-amber-200",
+        "Rejected" => "bg-rose-50 text-rose-700 border-rose-200",
+        "PrerequisiteRequired" => "bg-slate-100 text-slate-600 border-slate-200",
+        "NoExamCreated" => "bg-slate-50 text-slate-500 border-slate-200",
+        _ => "bg-slate-50 text-slate-600 border-slate-200"
+    };
+
+    private string GetStatusDotClass(string status) => status switch
+    {
+        "Approved" => "bg-emerald-500",
+        "InProgress" => "bg-indigo-500 animate-pulse",
+        "Submitted" => "bg-emerald-500",
+        "Expired" => "bg-amber-500",
+        "Pending" => "bg-amber-500 animate-pulse",
+        "Rejected" => "bg-rose-500",
+        _ => "bg-slate-400"
+    };
+}

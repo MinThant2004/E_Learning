@@ -1,3 +1,4 @@
+﻿using ELearningManagementSystem.Shared.Constants;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ public class PermissionsController : ControllerBase
     {
         bool hasPermission = User.HasClaim(c => c.Type == "permission" && 
             (c.Value == "Permission.Read" || c.Value == "Permission.Assign"));
-        bool isAdmin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+        bool isAdmin = User.IsInRole(AppConstants.AdministratorRole) || User.IsInRole(AppConstants.SystemAdministratorRole);
 
         if (!hasPermission && !isAdmin)
         {

@@ -1,3 +1,4 @@
+﻿using ELearningManagementSystem.Shared.Constants;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -82,9 +83,9 @@ public class RoleService : IRoleService
         bool exists = await _context.Roles.AnyAsync(r => r.RoleName == request.RoleName);
         if (exists) return Result.Failure<int>("RoleAlreadyExists");
 
-        if (request.RoleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        if (request.RoleName.Equals(AppConstants.SystemAdministratorRole, StringComparison.OrdinalIgnoreCase))
         {
-            return Result.Failure<int>("CannotCreateSuperAdminRole: The SuperAdmin role name is reserved.");
+            return Result.Failure<int>("CannotCreateSuperAdminRole: The 'System Administrator' role name is reserved.");
         }
 
         var currentUserId = _currentUserService.UserId;
@@ -92,7 +93,7 @@ public class RoleService : IRoleService
 
         bool isCallerSuperAdmin = await _context.UserRoles
             .Include(ur => ur.Role)
-            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == "SuperAdmin");
+            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == AppConstants.SystemAdministratorRole);
 
         if (!isCallerSuperAdmin && request.PermissionIds != null && request.PermissionIds.Any())
         {
@@ -148,15 +149,15 @@ public class RoleService : IRoleService
 
         bool isCallerSuperAdmin = await _context.UserRoles
             .Include(ur => ur.Role)
-            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == "SuperAdmin");
+            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == AppConstants.SystemAdministratorRole);
 
-        if ((role.RoleName == "SuperAdmin" || role.RoleName == "Admin") && !isCallerSuperAdmin)
+        if ((role.RoleName == AppConstants.SystemAdministratorRole || role.RoleName == AppConstants.AdministratorRole) && !isCallerSuperAdmin)
         {
             return Result.Failure<bool>("ProtectedRole: Only a System Administrator can modify built-in administrator roles.");
         }
         
-        // Prevent editing the name of built-in roles like "Student", "Admin", and "SuperAdmin"
-        if (role.RoleName == "Student" || role.RoleName == "SuperAdmin" || role.RoleName == "Admin")
+        // Prevent editing the name of built-in roles like "Student", "Admin", and AppConstants.SystemAdministratorRole
+        if (role.RoleName == "Student" || role.RoleName == AppConstants.SystemAdministratorRole || role.RoleName == AppConstants.AdministratorRole)
         {
             if (!string.Equals(role.RoleName, request.RoleName, StringComparison.OrdinalIgnoreCase))
             {
@@ -207,13 +208,18 @@ public class RoleService : IRoleService
 
         bool isCallerSuperAdmin = await _context.UserRoles
             .Include(ur => ur.Role)
-            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == "SuperAdmin");
+            .AnyAsync(ur => ur.UserId == currentUserId.Value && ur.Role.RoleName == AppConstants.SystemAdministratorRole);
 
-        if ((role.RoleName == "SuperAdmin" || role.RoleName == "Admin") && !isCallerSuperAdmin)
+        // Protected-role check: only the System Administrator may modify built-in
+        // administrator roles (Administrator and System Administrator). Other users
+        // with Permission.Assign may delegate permissions only to lower-level roles.
+        if ((role.RoleName == AppConstants.SystemAdministratorRole || role.RoleName == AppConstants.AdministratorRole) && !isCallerSuperAdmin)
         {
-            return Result.Failure<bool>("ProtectedRole: Only a System Administrator can modify built-in administrator roles.");
+            return Result.Failure<bool>("ProtectedRole: Only the System Administrator can modify built-in administrator roles.");
         }
 
+        // Delegation guard: a non-System-Administrator caller may only delegate
+        // permissions that fall within their own authority (prevents privilege escalation).
         if (!isCallerSuperAdmin)
         {
             var callerPermissionIds = await _context.UserRoles
@@ -226,14 +232,14 @@ public class RoleService : IRoleService
             var unauthorizedPermissionIds = request.PermissionIds.Except(callerPermissionIds).ToList();
             if (unauthorizedPermissionIds.Any())
             {
-                return Result.Failure<bool>("PrivilegeEscalation: You cannot assign permissions that you do not possess.");
+                return Result.Failure<bool>("PrivilegeEscalation: You cannot delegate permissions that you do not possess.");
             }
         }
 
-        // Special protection: SuperAdmin should not have its permissions modified to prevent lockout
-        if (role.RoleName == "SuperAdmin")
+        // Lockout protection: the System Administrator role's permissions can never be modified.
+        if (role.RoleName == AppConstants.SystemAdministratorRole)
         {
-            return Result.Failure<bool>("Cannot modify permissions of SuperAdmin role to prevent lockout");
+            return Result.Failure<bool>("Cannot modify permissions of System Administrator role to prevent lockout");
         }
 
         // Remove old

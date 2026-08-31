@@ -7,24 +7,27 @@
 @attribute [Authorize(Policy = "Permission:Category.Read")]
 @implements IDisposable
 @inject CategoryApiClient CategoryClient
+@inject NavigationManager NavManager
 
 <PageTitle>Manage Categories</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <PageHeader Title="Manage Categories" Description="Create, edit, and deactivate course categories.">
-        <ActionTemplate>
-            <AuthorizeView Policy="Permission:Category.Create">
-                <Authorized>
-                    <button @onclick="ShowCreateForm" type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors w-full sm:w-auto disabled:opacity-50">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Category
-                    </button>
-                </Authorized>
-            </AuthorizeView>
-        </ActionTemplate>
-    </PageHeader>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Manage Categories</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">Create, edit, and deactivate course categories.</p>
+        </div>
+        <AuthorizeView Policy="Permission:Category.Create">
+            <Authorized>
+                <button @onclick='() => NavManager.NavigateTo("/admin/categories/create")' type="button" disabled="@(IsLoading || IsSaving || IsDeleting)" class="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Category
+                </button>
+            </Authorized>
+        </AuthorizeView>
+    </div>
 
     @if (ErrorMessage != null)
     {
@@ -51,48 +54,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-    }
-
-    @if (IsFormVisible)
-    {
-        <div class="bg-white shadow-lg sm:rounded-2xl border border-slate-200 mb-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <h3 class="text-lg leading-6 font-semibold text-slate-900">@(EditingCategoryId.HasValue ? "Edit Category" : "Create New Category")</h3>
-            </div>
-            <div class="px-6 py-6 sm:p-8">
-                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div class="sm:col-span-6">
-                        <label for="name" class="block text-sm font-medium text-slate-700">Category Name <span class="text-red-500">*</span></label>
-                        <div class="mt-1">
-                            <input type="text" id="name" maxlength="100" @bind="CurrentCategory.CategoryName" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="e.g. Software Development" />
-                        </div>
-                    </div>
-                    <div class="sm:col-span-6">
-                        <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
-                        <div class="mt-1">
-                            <textarea id="description" rows="3" maxlength="255" @bind="CurrentCategory.Description" class="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-4 py-3 transition-colors" placeholder="Brief description of courses in this category..."></textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
-                <button type="button" @onclick="HideForm" class="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">Cancel</button>
-                <button type="button" @onclick="SaveCategory" disabled="@IsSaving" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70 transition-colors">
-                    @if (IsSaving)
-                    {
-                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Saving...</span>
-                    }
-                    else
-                    {
-                        <span>Save Category</span>
-                    }
-                </button>
             </div>
         </div>
     }
@@ -125,9 +86,7 @@
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Category Name</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-32">
-                            <span class="sr-only">Actions</span>
-                        </th>
+                        <th scope="col" class="relative py-4 pl-3 pr-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pr-6 w-32">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
@@ -172,7 +131,7 @@
                                         {
                                             <AuthorizeView Policy="Permission:Category.Update">
                                                 <Authorized>
-                                                    <button @onclick="() => ShowEditForm(category)" disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
+                                                    <button @onclick='() => NavManager.NavigateTo($"/admin/categories/{category.CategoryId}/edit")' disabled="@(IsSaving || IsDeleting)" class="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded hover:bg-indigo-50 disabled:opacity-50" title="Edit">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
@@ -184,7 +143,7 @@
                                                 <Authorized>
                                                     <button @onclick="() => OpenArchive(category)" disabled="@(IsSaving || IsDeleting)" class="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded hover:bg-amber-50 disabled:opacity-50" title="Archive">
                                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 12h4" />
                                                         </svg>
                                                         <span class="sr-only">Archive</span>
                                                     </button>
@@ -212,48 +171,10 @@
                 </tbody>
             </table>
         </div>
-        @if (TotalCount > 0)
-        {
-            <div class="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
-                <div class="flex flex-1 justify-between sm:hidden">
-                    <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Previous</button>
-                    <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Next</button>
-                </div>
-                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-slate-700">
-                            Showing <span class="font-medium">@(((CurrentPage - 1) * PageSize) + 1)</span> to <span class="font-medium">@(Math.Min(CurrentPage * PageSize, TotalCount))</span> of <span class="font-medium">@TotalCount</span> results
-                        </p>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <select @bind="PageSizeStr" class="rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1 pl-2 pr-8">
-                            <option value="10">10 / page</option>
-                            <option value="15">15 / page</option>
-                            <option value="25">25 / page</option>
-                            <option value="50">50 / page</option>
-                        </select>
-                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                            <button @onclick="PreviousPage" disabled="@(CurrentPage <= 1)" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Previous</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
-                                Page @CurrentPage of @TotalPages
-                            </span>
-                            <button @onclick="NextPage" disabled="@(CurrentPage >= TotalPages)" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50">
-                                <span class="sr-only">Next</span>
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        }
     </div>
+
+    <Pagination CurrentPage="CurrentPage" TotalPages="TotalPages" TotalCount="TotalCount" PageSize="PageSize"
+                ItemLabel="categories" PageChanged="GoToPageAsync" PageSizeChanged="OnPageSizeChangedAsync" />
 </div>
 <ConfirmationModal IsVisible="@IsConfirmVisible" Title="@ConfirmTitle" Message="@ConfirmMessage" ConfirmText="@ConfirmText" IsDestructive="@(!ConfirmRestore)" OnConfirm="ConfirmStatusChange" OnCancel="CloseConfirmation" />
 
@@ -262,13 +183,10 @@
     
     private bool IsLoading = true;
     private string? ErrorMessage;
-    
-    private bool IsFormVisible = false;
+
     private bool IsSaving = false;
     private bool IsDeleting = false;
-    
-    private int? EditingCategoryId;
-    private CreateCategoryRequest CurrentCategory = new();
+
     private bool IsConfirmVisible, ConfirmRestore;
     private CategoryResponse? PendingCategory;
     private string ConfirmTitle => ConfirmRestore ? "Restore Category?" : "Archive Category?";
@@ -337,38 +255,19 @@
     private int TotalPages = 1;
     private int TotalCount = 0;
 
-    private string PageSizeStr
+    private Task GoToPageAsync(int page)
     {
-        get => PageSize.ToString();
-        set
-        {
-            if (int.TryParse(value, out int size) && size != PageSize)
-            {
-                PageSize = size;
-                CurrentPage = 1;
-                _ = LoadCategories();
-            }
-        }
+        if (page < 1 || page > TotalPages || page == CurrentPage) return Task.CompletedTask;
+        CurrentPage = page;
+        return LoadCategories();
     }
 
-    private Task PreviousPage()
+    private Task OnPageSizeChangedAsync(int pageSize)
     {
-        if (CurrentPage > 1)
-        {
-            CurrentPage--;
-            return LoadCategories();
-        }
-        return Task.CompletedTask;
-    }
-
-    private Task NextPage()
-    {
-        if (CurrentPage < TotalPages)
-        {
-            CurrentPage++;
-            return LoadCategories();
-        }
-        return Task.CompletedTask;
+        if (pageSize == PageSize) return Task.CompletedTask;
+        PageSize = pageSize;
+        CurrentPage = 1;
+        return LoadCategories();
     }
 
     protected override async Task OnInitializedAsync()
@@ -403,31 +302,6 @@
         }
     }
 
-    private void ShowCreateForm()
-    {
-        EditingCategoryId = null;
-        CurrentCategory = new CreateCategoryRequest();
-        IsFormVisible = true;
-        ErrorMessage = null;
-    }
-
-    private void ShowEditForm(CategoryResponse category)
-    {
-        EditingCategoryId = category.CategoryId;
-        CurrentCategory = new CreateCategoryRequest
-        {
-            CategoryName = category.CategoryName,
-            Description = category.Description
-        };
-        IsFormVisible = true;
-        ErrorMessage = null;
-    }
-
-    private void HideForm()
-    {
-        IsFormVisible = false;
-    }
-
     private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
     {
         var rawError = await ApiResponseHelper.GetErrorMessageAsync(response);
@@ -437,53 +311,6 @@
             "CategoryInUse" => "This category cannot be deleted because it is currently used by one or more courses.",
             _ => rawError
         };
-    }
-
-    private async Task SaveCategory()
-    {
-        if (string.IsNullOrWhiteSpace(CurrentCategory.CategoryName))
-        {
-            ErrorMessage = "Category Name is required.";
-            return;
-        }
-
-        IsSaving = true;
-        ErrorMessage = null;
-        try
-        {
-            HttpResponseMessage response;
-            if (EditingCategoryId.HasValue)
-            {
-                var updateRequest = new UpdateCategoryRequest
-                {
-                    CategoryName = CurrentCategory.CategoryName,
-                    Description = CurrentCategory.Description
-                };
-                response = await CategoryClient.UpdateCategoryAsync(EditingCategoryId.Value, updateRequest);
-            }
-            else
-            {
-                response = await CategoryClient.CreateCategoryAsync(CurrentCategory);
-            }
-
-            if (response.IsSuccessStatusCode)
-            {
-                IsFormVisible = false;
-                await LoadCategories();
-            }
-            else
-            {
-                ErrorMessage = await GetApiErrorMessage(response);
-            }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Error saving category: " + ex.Message;
-        }
-        finally
-        {
-            IsSaving = false;
-        }
     }
 
     private void OpenArchive(CategoryResponse category) { PendingCategory = category; ConfirmRestore = category.DeleteFlag; IsConfirmVisible = true; }

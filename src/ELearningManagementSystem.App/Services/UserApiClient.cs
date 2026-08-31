@@ -36,7 +36,20 @@ public class UserApiClient
 
     public async Task<AdminUserDetailResponse?> GetUserByIdAsync(int id)
     {
-        return await _httpClient.GetFromJsonAsync<AdminUserDetailResponse>($"api/users/{id}");
+        var response = await _httpClient.GetAsync($"api/users/{id}");
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<AdminUserDetailResponse>();
+    }
+
+    public async Task<(bool Success, string? Error)> CreateUserAsync(CreateUserRequest request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/users", request);
+        if (response.IsSuccessStatusCode)
+            return (true, null);
+
+        return (false, await ReadErrorAsync(response));
     }
 
     public async Task<(bool Success, string? Error)> UpdateUserAsync(int id, UpdateUserRequest request)
@@ -77,6 +90,18 @@ public class UserApiClient
             using var document = JsonDocument.Parse(content);
             if (document.RootElement.TryGetProperty("error", out var error))
                 return error.GetString();
+            if (document.RootElement.TryGetProperty("errors", out var errors))
+            {
+                if (errors.ValueKind == JsonValueKind.Array)
+                    return string.Join(" ", errors.EnumerateArray().Select(x => x.GetString()));
+                return errors.GetString();
+            }
+            if (document.RootElement.TryGetProperty("Errors", out var errorsUpper))
+            {
+                if (errorsUpper.ValueKind == JsonValueKind.Array)
+                    return string.Join(" ", errorsUpper.EnumerateArray().Select(x => x.GetString()));
+                return errorsUpper.GetString();
+            }
         }
         catch (JsonException)
         {
@@ -122,7 +147,15 @@ public class AdminUserDetailResponse
     public bool Status { get; set; }
     public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; }
-    public List<string> Roles { get; set; } = new();
+    public DateTime? UpdatedAt { get; set; }
+    public List<UserRoleSummaryResponse> Roles { get; set; } = new();
+}
+
+public class UserRoleSummaryResponse
+{
+    public string RoleName { get; set; } = string.Empty;
+    public DateTime AssignedAt { get; set; }
+    public string? AssignedBy { get; set; }
 }
 
 public class UpdateUserRequest
@@ -130,4 +163,13 @@ public class UpdateUserRequest
     public string FullName { get; set; } = string.Empty;
     public bool Status { get; set; }
     public List<string> Roles { get; set; } = new();
+}
+
+public class CreateUserRequest
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public List<string> Roles { get; set; } = new();
+    public string Password { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
 }

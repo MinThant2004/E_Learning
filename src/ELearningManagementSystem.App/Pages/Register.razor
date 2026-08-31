@@ -76,7 +76,7 @@
                     <div class="mt-1 relative rounded-xl shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                         </div>
                         <InputText id="email" @bind-Value="_model.Email" class="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors" placeholder="you@example.com" />
@@ -93,9 +93,60 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
-                        <InputText type="password" id="password" @bind-Value="_model.Password" class="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors" placeholder="Min 8 chars, upper, lower, digit" />
+                        <InputText type="@(_showPassword ? "text" : "password")" id="password" @bind-Value="_model.Password" class="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors" placeholder="••••••••" />
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <button type="button" @onclick="TogglePasswordVisibility" aria-label="@(_showPassword ? "Hide password" : "Show password")" aria-pressed="@_showPassword" class="text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md transition-colors">
+                                @if (_showPassword)
+                                {
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a11.933 11.933 0 015.5-5.949M17.08 6.92A11.888 11.888 0 0118.955 12c-1.019 3.153-3.983 5.638-7.557 6.381m-8.61-11.19l1.42 1.42M5.633 17.633l1.42 1.42M20 4L4 20" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.88 9.88a3 3 0 104.24 4.24" />
+                                    </svg>
+                                }
+                                else
+                                {
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                }
+                            </button>
+                        </div>
                     </div>
                     <ValidationMessage For="@(() => _model.Password)" class="mt-1 text-sm text-red-600" />
+                    <p class="mt-1 text-xs text-slate-500">Use at least 8 characters with an uppercase letter, a lowercase letter, and a number.</p>
+                </div>
+
+                <!-- Confirm Password -->
+                <div>
+                    <label for="confirmPassword" class="block text-sm font-medium text-slate-700">Confirm password</label>
+                    <div class="mt-1 relative rounded-xl shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <InputText type="@(_showConfirmPassword ? "text" : "password")" id="confirmPassword" @bind-Value="_model.ConfirmPassword" class="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors" placeholder="Re-enter your password" />
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <button type="button" @onclick="ToggleConfirmPasswordVisibility" aria-label="@(_showConfirmPassword ? "Hide password confirmation" : "Show password confirmation")" aria-pressed="@_showConfirmPassword" class="text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md transition-colors">
+                                @if (_showConfirmPassword)
+                                {
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a11.933 11.933 0 015.5-5.949M17.08 6.92A11.888 11.888 0 0118.955 12c-1.019 3.153-3.983 5.638-7.557 6.381m-8.61-11.19l1.42 1.42M5.633 17.633l1.42 1.42M20 4L4 20" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.88 9.88a3 3 0 104.24 4.24" />
+                                    </svg>
+                                }
+                                else
+                                {
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                    <ValidationMessage For="@(() => _model.ConfirmPassword)" class="mt-1 text-sm text-red-600" />
                 </div>
 
                 <!-- Submit -->
@@ -131,6 +182,12 @@
     private string _errorMessage = string.Empty;
     private string _successMessage = string.Empty;
     private bool _isLoading;
+    private bool _showPassword;
+    private bool _showConfirmPassword;
+
+    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
+
+    private void ToggleConfirmPasswordVisibility() => _showConfirmPassword = !_showConfirmPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,9 +206,16 @@
         {
             if (string.IsNullOrWhiteSpace(_model.FullName) ||
                 string.IsNullOrWhiteSpace(_model.Email) ||
-                string.IsNullOrWhiteSpace(_model.Password))
+                string.IsNullOrWhiteSpace(_model.Password) ||
+                string.IsNullOrWhiteSpace(_model.ConfirmPassword))
             {
                 _errorMessage = "Please fill in all fields.";
+                return;
+            }
+
+            if (_model.Password != _model.ConfirmPassword)
+            {
+                _errorMessage = "Passwords do not match.";
                 return;
             }
 
@@ -188,5 +252,9 @@
 
         [Required(ErrorMessage = "Password is required.")]
         public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Confirm password is required.")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

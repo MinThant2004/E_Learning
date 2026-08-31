@@ -1,0 +1,492 @@
+@page "/admin/exams"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Course.Update")]
+@inject CourseExamApiClient ExamApiClient
+@inject CourseApiClient CourseApiClient
+@inject NavigationManager NavManager
+@implements IDisposable
+
+<PageTitle>Manage Course Exams - Admin</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Course Exam Management</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">Manage paid certification exams and question parameters for courses.</p>
+        </div>
+        <button @onclick="OpenCreateModal"
+                class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-all duration-150 cursor-pointer self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Create Exam
+        </button>
+    </div>
+
+    <div class="space-y-6">
+    <!-- Error Banner -->
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-rose-700 text-sm font-medium">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>@ErrorMessage</span>
+            </div>
+            <button @onclick="() => ErrorMessage = null" class="text-rose-400 hover:text-rose-600">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    }
+
+    <!-- Toolbar: Search, Filters -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+        <div class="relative flex-1">
+            <svg class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text"
+                   value="@SearchTerm"
+                   @oninput="OnSearchInput"
+                   placeholder="Search by exam or course title..."
+                   class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" />
+        </div>
+
+        <div class="flex items-center gap-3">
+            <select value="@(IsArchived ? "archived" : "active")" @onchange="OnArchivedFilterChanged"
+                    class="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                <option value="active">Active Exams</option>
+                <option value="archived">Archived Exams</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Content Table -->
+    @if (IsLoading)
+    {
+        <div class="grid grid-cols-1 gap-4">
+            <SkeletonCard />
+            <SkeletonCard />
+        </div>
+    }
+    else if (Exams == null || !Exams.Any())
+    {
+        <EmptyState Title="No Course Exams Found"
+                    Description="No course exams match your search criteria. Create an exam to get started.">
+            <ActionTemplate>
+                <button @onclick="OpenCreateModal"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-all duration-150 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Exam
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 bg-slate-50/50 text-xs uppercase font-bold text-slate-400 tracking-wider">
+                            <th class="py-3.5 px-4">No.</th>
+                            <th class="py-3.5 px-4">Exam Title</th>
+                            <th class="py-3.5 px-4">Course</th>
+                            <th class="py-3.5 px-4">Fee (MMK)</th>
+                            <th class="py-3.5 px-4">Pool / Required</th>
+                            <th class="py-3.5 px-4">Duration</th>
+                            <th class="py-3.5 px-4">Pass Score</th>
+                            <th class="py-3.5 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+                        @foreach (var (exam, index) in Exams.Select((e, i) => (e, i)))
+                        {
+                            <tr class="hover:bg-slate-50/80 transition-colors">
+                                <td class="py-3.5 px-4 text-slate-400 font-semibold">@((Page - 1) * PageSize + index + 1)</td>
+                                <td class="py-3.5 px-4">
+                                    <div class="font-bold text-slate-900">@exam.Title</div>
+                                    @if (!string.IsNullOrEmpty(exam.Description))
+                                    {
+                                        <div class="text-xs text-slate-400 truncate max-w-xs">@exam.Description</div>
+                                    }
+                                </td>
+                                <td class="py-3.5 px-4 font-semibold text-slate-800">@exam.CourseTitle</td>
+                                <td class="py-3.5 px-4 font-bold text-indigo-600">@exam.ExamFee.ToString("N0") MMK</td>
+                                <td class="py-3.5 px-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold @(exam.PoolQuestionCount >= exam.QuestionCount ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200")">
+                                        <span>@exam.PoolQuestionCount</span> / <span>@exam.QuestionCount Qs</span>
+                                    </span>
+                                </td>
+                                <td class="py-3.5 px-4">@exam.DurationMinutes mins</td>
+                                <td class="py-3.5 px-4">@exam.PassingScore%</td>
+                                <td class="py-3.5 px-4 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button @onclick="() => ManageQuestionPool(exam.ExamId)" title="Manage Question Pool"
+                                                class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition-colors">
+                                            Pool (@exam.PoolQuestionCount)
+                                        </button>
+                                        <button @onclick="() => OpenEditModal(exam)" title="Edit Exam"
+                                                class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        @if (!exam.DeleteFlag)
+                                        {
+                                            <button @onclick="() => ConfirmArchive(exam)" title="Archive Exam"
+                                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button @onclick="() => ConfirmRestore(exam)" title="Restore Exam"
+                                                    class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    </div>
+</div>
+
+<!-- Modal: Create / Edit Exam -->
+@if (IsModalOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-900">@(EditingExamId.HasValue ? "Edit Course Exam" : "Create New Course Exam")</h3>
+                <button @onclick="CloseModal" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                @if (!EditingExamId.HasValue)
+                {
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Select Course</label>
+                        <select @bind="FormCourseId" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20">
+                            <option value="0">-- Select Course --</option>
+                            @if (AvailableCourses != null)
+                            {
+                                @foreach (var c in AvailableCourses)
+                                {
+                                    <option value="@c.CourseId">@c.Title</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Exam Title</label>
+                    <input type="text" @bind="FormTitle" placeholder="e.g. C# Certification Exam" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20" />
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Description (Optional)</label>
+                    <textarea @bind="FormDescription" rows="2" placeholder="Brief exam instructions or summary..." class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Exam Fee (MMK)</label>
+                        <input type="number" @bind="FormExamFee" @bind:event="oninput" min="0" step="500" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20" />
+                        <span class="text-xs font-bold text-indigo-600 mt-1 block">Formatted: @FormExamFee.ToString("N0") MMK</span>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Questions to Pull</label>
+                        <input type="number" @bind="FormQuestionCount" min="1" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Duration (Mins)</label>
+                        <input type="number" @bind="FormDurationMinutes" min="1" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20" />
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Pass Score (%)</label>
+                        <input type="number" @bind="FormPassingScore" min="1" max="100" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button @onclick="CloseModal" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm">Cancel</button>
+                <button @onclick="SaveExam" disabled="@IsSaving" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    @(IsSaving ? "Saving..." : "Save Exam")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Confirmation Modal for Archive / Restore -->
+@if (SelectedExamForAction != null)
+{
+    <ConfirmationModal IsOpen="true"
+                       Title="@(ActionType == "archive" ? "Archive Exam" : "Restore Exam")"
+                       Message="@($"Are you sure you want to {ActionType} the exam '{SelectedExamForAction.Title}'?")"
+                       ConfirmButtonText="@(ActionType == "archive" ? "Archive" : "Restore")"
+                       OnConfirm="ExecuteAction"
+                       OnCancel="() => SelectedExamForAction = null" />
+}
+
+@code {
+    private List<CourseExamResponse>? Exams;
+    private List<CourseSummaryResponse>? AvailableCourses;
+    private bool IsLoading = true;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+    private string SearchTerm = string.Empty;
+    private bool IsArchived = false;
+    private int Page = 1;
+    private int PageSize = 10;
+    private System.Timers.Timer? DebounceTimer;
+
+    // Form state
+    private bool IsModalOpen = false;
+    private int? EditingExamId;
+    private int FormCourseId;
+    private string FormTitle = string.Empty;
+    private string? FormDescription;
+    private decimal FormExamFee = 15000;
+    private int FormQuestionCount = 50;
+    private int FormDurationMinutes = 60;
+    private int FormPassingScore = 70;
+    private int FormMaxAttempts = 3;
+
+    // Action state
+    private CourseExamResponse? SelectedExamForAction;
+    private string ActionType = "archive";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExams();
+        await LoadCourses();
+    }
+
+    private async Task LoadExams()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            var result = await ExamApiClient.GetExamsAsync(Page, PageSize, SearchTerm, IsArchived);
+            Exams = result?.Items?.ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load exams: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadCourses()
+    {
+        try
+        {
+            var pagedCourses = await CourseApiClient.GetCoursesAsync(1, 100);
+            AvailableCourses = pagedCourses?.Items?.ToList();
+        }
+        catch
+        {
+            // Non-critical
+        }
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+        DebounceTimer?.Stop();
+        DebounceTimer = new System.Timers.Timer(400);
+        DebounceTimer.Elapsed += async (s, ev) =>
+        {
+            DebounceTimer.Stop();
+            Page = 1;
+            await InvokeAsync(LoadExams);
+        };
+        DebounceTimer.Start();
+    }
+
+    private async Task OnArchivedFilterChanged(ChangeEventArgs e)
+    {
+        IsArchived = e.Value?.ToString() == "archived";
+        Page = 1;
+        await LoadExams();
+    }
+
+    private void OpenCreateModal()
+    {
+        EditingExamId = null;
+        FormCourseId = 0;
+        FormTitle = string.Empty;
+        FormDescription = null;
+        FormExamFee = 15000;
+        FormQuestionCount = 50;
+        FormDurationMinutes = 60;
+        FormPassingScore = 70;
+        FormMaxAttempts = 3;
+        IsModalOpen = true;
+    }
+
+    private void OpenEditModal(CourseExamResponse exam)
+    {
+        EditingExamId = exam.ExamId;
+        FormCourseId = exam.CourseId;
+        FormTitle = exam.Title;
+        FormDescription = exam.Description;
+        FormExamFee = exam.ExamFee;
+        FormQuestionCount = exam.QuestionCount;
+        FormDurationMinutes = exam.DurationMinutes;
+        FormPassingScore = exam.PassingScore;
+        FormMaxAttempts = exam.MaxAttempts;
+        IsModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        IsModalOpen = false;
+    }
+
+    private async Task SaveExam()
+    {
+        if (FormCourseId <= 0 && !EditingExamId.HasValue)
+        {
+            ErrorMessage = "Please select a valid course.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormTitle))
+        {
+            ErrorMessage = "Exam title is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+            if (EditingExamId.HasValue)
+            {
+                var req = new UpdateCourseExamRequest
+                {
+                    Title = FormTitle,
+                    Description = FormDescription,
+                    ExamFee = FormExamFee,
+                    QuestionCount = FormQuestionCount,
+                    DurationMinutes = FormDurationMinutes,
+                    PassingScore = FormPassingScore,
+                    MaxAttempts = FormMaxAttempts,
+                    Status = true
+                };
+                response = await ExamApiClient.UpdateExamAsync(EditingExamId.Value, req);
+            }
+            else
+            {
+                var req = new CreateCourseExamRequest
+                {
+                    CourseId = FormCourseId,
+                    Title = FormTitle,
+                    Description = FormDescription,
+                    ExamFee = FormExamFee,
+                    QuestionCount = FormQuestionCount,
+                    DurationMinutes = FormDurationMinutes,
+                    PassingScore = FormPassingScore,
+                    MaxAttempts = FormMaxAttempts
+                };
+                response = await ExamApiClient.CreateExamAsync(req);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                IsModalOpen = false;
+                await LoadExams();
+            }
+            else
+            {
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error saving exam: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void ManageQuestionPool(int examId)
+    {
+        NavManager.NavigateTo($"/admin/exams/{examId}/questions");
+    }
+
+    private void ConfirmArchive(CourseExamResponse exam)
+    {
+        SelectedExamForAction = exam;
+        ActionType = "archive";
+    }
+
+    private void ConfirmRestore(CourseExamResponse exam)
+    {
+        SelectedExamForAction = exam;
+        ActionType = "restore";
+    }
+
+    private async Task ExecuteAction()
+    {
+        if (SelectedExamForAction == null) return;
+        try
+        {
+            if (ActionType == "archive")
+                await ExamApiClient.ArchiveExamAsync(SelectedExamForAction.ExamId);
+            else
+                await ExamApiClient.RestoreExamAsync(SelectedExamForAction.ExamId);
+
+            SelectedExamForAction = null;
+            await LoadExams();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Action failed: " + ex.Message;
+        }
+    }
+
+    public void Dispose()
+    {
+        DebounceTimer?.Dispose();
+    }
+}

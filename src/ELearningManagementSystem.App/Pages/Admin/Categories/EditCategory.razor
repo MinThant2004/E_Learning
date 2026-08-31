@@ -1,0 +1,188 @@
+@page "/admin/categories/{CategoryId:int}/edit"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Category.Update")]
+@inject CategoryApiClient CategoryClient
+@inject NavigationManager NavManager
+
+<PageTitle>Edit Category</PageTitle>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-6">
+        <div>
+            <a href="/admin/categories" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition mb-2">← Back to Categories</a>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Edit Category</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">Update category title and description</p>
+        </div>
+        <div class="border-b border-slate-100 pt-3"></div>
+
+    @if (ErrorMessage != null)
+    {
+        <div class="rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>@ErrorMessage</p>
+                    </div>
+                </div>
+                <div class="ml-auto pl-3">
+                    <div class="-mx-1.5 -my-1.5">
+                        <button @onclick="() => ErrorMessage = null" type="button" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50">
+                            <span class="sr-only">Dismiss</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (IsPageLoading)
+    {
+        <SkeletonCard />
+    }
+    else if (HasLoadError)
+    {
+        <EmptyState Title="Category Unavailable" Description="Could not load the category details. It may have been archived or removed.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </Icon>
+            <ActionTemplate>
+                <button @onclick="GoBack" class="inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
+                    Return to Categories
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-y-5 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <label for="name" class="block text-sm font-bold text-slate-700 mb-2">Category Name <span class="text-rose-500">*</span></label>
+                            <input type="text" id="name" maxlength="100" @bind="CategoryName" class="w-full text-sm rounded-xl border border-slate-200 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" placeholder="e.g. Software Development" />
+                        </div>
+                        <div class="sm:col-span-6">
+                            <label for="description" class="block text-sm font-bold text-slate-700 mb-2">Description</label>
+                            <textarea id="description" rows="4" maxlength="255" @bind="Description" class="w-full text-sm rounded-xl border border-slate-200 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" placeholder="Brief description of courses in this category..."></textarea>
+                        </div>
+                    </div>
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" @onclick="GoBack" class="px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition">Cancel</button>
+                <button type="button" @onclick="UpdateCategory" disabled="@IsSaving" class="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition disabled:opacity-70">
+                    @if (IsSaving)
+                    {
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Changes</span>
+                    }
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CategoryId { get; set; }
+
+    private bool IsPageLoading = true;
+    private bool HasLoadError = false;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+
+    // Form State
+    private string CategoryName = string.Empty;
+    private string? Description;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var category = await CategoryClient.GetCategoryAsync(CategoryId);
+            if (category == null)
+            {
+                HasLoadError = true;
+                return;
+            }
+
+            CategoryName = category.CategoryName;
+            Description = category.Description;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load category details. " + ex.Message;
+            HasLoadError = true;
+        }
+        finally
+        {
+            IsPageLoading = false;
+        }
+    }
+
+    private async Task<string> GetApiErrorMessage(HttpResponseMessage response)
+    {
+        var rawError = await ApiResponseHelper.GetErrorMessageAsync(response);
+        return rawError switch
+        {
+            "CategoryAlreadyExists" => "A category with this name already exists.",
+            _ => rawError
+        };
+    }
+
+    private async Task UpdateCategory()
+    {
+        if (string.IsNullOrWhiteSpace(CategoryName))
+        {
+            ErrorMessage = "Category Name is required.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var updateRequest = new UpdateCategoryRequest
+            {
+                CategoryName = CategoryName,
+                Description = Description
+            };
+
+            var response = await CategoryClient.UpdateCategoryAsync(CategoryId, updateRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/admin/categories");
+            }
+            else
+            {
+                ErrorMessage = await GetApiErrorMessage(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error updating category: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void GoBack() => NavManager.NavigateTo("/admin/categories");
+}

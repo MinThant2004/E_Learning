@@ -8,10 +8,10 @@
 
 <PageTitle>Quiz Results</PageTitle>
 
-<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <button @onclick="GoBackToCourse" class="mb-8 inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors group">
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <button @onclick="GoBackToCourse" class="mb-6 inline-flex items-center text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors group p-2 -ml-2 rounded-xl hover:bg-slate-100">
         <svg class="mr-2 h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
         Back to Course
     </button>
@@ -22,79 +22,121 @@
     }
     else if (HasError || Result == null)
     {
-        <EmptyState Title="Not Found" Description="Could not load the quiz results.">
+        <EmptyState Title="Results Unavailable" Description="Could not load the quiz results. Please try again.">
             <Icon>
-                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </Icon>
+            <ActionTemplate>
+                <button @onclick="GoBackToCourse" class="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
+                    Return to Course
+                </button>
+            </ActionTemplate>
         </EmptyState>
     }
     else
     {
-        <div class="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-100 overflow-hidden">
-            <div class="p-10 text-center @(Result.Passed ? "bg-green-50 border-b border-green-100" : "bg-red-50 border-b border-red-100")">
-                
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/40 overflow-hidden transition-all">
+            
+            @* ── Result Hero Header Banner ─────────────────────────────────────── *@
+            <div class="p-8 sm:p-10 text-center text-white relative overflow-hidden @(Result.Passed ? "bg-gradient-to-br from-emerald-600 via-teal-600 to-indigo-700" : "bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-900")">
+                <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                    <svg class="w-64 h-64 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+
                 @if (Result.Passed)
                 {
-                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
-                        <svg class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 mb-6 shadow-lg">
+                        <svg class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
-                    <h2 class="text-3xl font-bold text-green-900 mb-2">Congratulations!</h2>
-                    <p class="text-green-700 font-medium">You have successfully passed the quiz.</p>
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest bg-emerald-400/20 backdrop-blur-md border border-emerald-400/30 text-emerald-100 mb-2">Quiz Passed</span>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">Congratulations!</h1>
+                    <p class="text-emerald-100 font-medium max-w-md mx-auto">Great job! You have passed the quiz assessment and demonstrated course mastery.</p>
                 }
                 else
                 {
-                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-6">
-                        <svg class="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 mb-6 shadow-lg">
+                        <svg class="h-10 w-10 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                     </div>
-                    <h2 class="text-3xl font-bold text-red-900 mb-2">Keep Trying!</h2>
-                    <p class="text-red-700 font-medium">You did not pass this time. Review the material and try again.</p>
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest bg-amber-400/20 backdrop-blur-md border border-amber-400/30 text-amber-200 mb-2">Keep Learning</span>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">Quiz Attempt Completed</h1>
+                    <p class="text-slate-300 font-medium max-w-md mx-auto">Review the course materials and try again to improve your score.</p>
                 }
             </div>
 
-            <div class="p-10">
-                <div class="grid grid-cols-2 gap-8 mb-8">
-                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-sm font-medium text-slate-500 mb-1">Final Score</p>
-                        <p class="text-4xl font-black text-slate-900">@Math.Round(Result.Score)%</p>
+            @* ── Result Summary Metrics Grid ─────────────────────────────────── *@
+            <div class="p-6 sm:p-8">
+                
+                @* Score Progress Bar Indicator *@
+                <div class="mb-8 p-6 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Overall Accuracy</span>
+                        <span class="text-base font-extrabold text-slate-900">@Math.Round(Result.Score)%</span>
                     </div>
-                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-sm font-medium text-slate-500 mb-1">Correct Answers</p>
-                        <p class="text-4xl font-black text-slate-900">@Result.CorrectAnswers <span class="text-xl text-slate-400">/ @Result.TotalQuestions</span></p>
+                    <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div class="@(Result.Passed ? "bg-emerald-600" : "bg-indigo-600") h-full rounded-full transition-all duration-500"
+                             style="width: @(Math.Min(100, Math.Max(0, Math.Round(Result.Score))))%"></div>
                     </div>
                 </div>
 
-                <div class="text-center text-sm text-slate-500 mb-8">
-                    Submitted on @Result.SubmittedAt.ToLocalTime().ToString("dd/MM/yyyy h:mm tt")
+                @* 4 Key Metrics Cards *@
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                    @* Score % *@
+                    <div class="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 text-center shadow-sm">
+                        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap">Percentage</span>
+                        <span class="text-2xl sm:text-3xl font-black text-slate-900">@Math.Round(Result.Score)%</span>
+                    </div>
+
+                    @* Correct Count *@
+                    <div class="p-4 sm:p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200/60 text-center shadow-sm">
+                        <span class="text-[10px] font-extrabold text-emerald-700 uppercase tracking-widest block mb-1 whitespace-nowrap">Correct</span>
+                        <span class="text-2xl sm:text-3xl font-black text-emerald-800">@Result.CorrectAnswers</span>
+                    </div>
+
+                    @* Wrong / Skipped Count (Neutral Styling) *@
+                    <div class="p-4 sm:p-5 rounded-2xl bg-amber-50/40 border border-amber-200/50 text-center shadow-sm">
+                        <span class="text-[10px] font-extrabold text-amber-800 uppercase tracking-widest block mb-1 whitespace-nowrap">Wrong</span>
+                        <span class="text-2xl sm:text-3xl font-black text-amber-900">@(Result.TotalQuestions - Result.CorrectAnswers)</span>
+                    </div>
+
+                    @* Total Questions *@
+                    <div class="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 text-center shadow-sm">
+                        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap">Total Questions</span>
+                        <span class="text-2xl sm:text-3xl font-black text-slate-900">@Result.TotalQuestions</span>
+                    </div>
                 </div>
 
-                <div class="flex justify-center space-x-4">
-                    <button @onclick="GoBackToCourse" class="inline-flex justify-center items-center px-8 py-3 border border-slate-300 rounded-full shadow-sm text-base font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                <div class="text-center text-xs font-medium text-slate-400 mb-8">
+                    Attempt submitted on @Result.SubmittedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm tt")
+                </div>
+
+                @* ── Action Buttons ─────────────────────────────────────────────── *@
+                <div class="flex flex-col sm:flex-row justify-center gap-3">
+                    <button @onclick="GoBackToCourse"
+                            class="inline-flex justify-center items-center px-8 py-3 rounded-full text-sm font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all">
                         Back to Course
                     </button>
-                    @if (!Result.Passed)
-                    {
-                        <button @onclick="RetakeQuiz" class="inline-flex justify-center items-center px-8 py-3 border border-transparent rounded-full shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
-                            Retake Quiz
-                        </button>
-                    }
+                    <button @onclick="RetakeQuiz"
+                            class="inline-flex justify-center items-center px-8 py-3 rounded-full text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all">
+                        Retake Quiz
+                    </button>
                 </div>
             </div>
+
         </div>
     }
 </div>
 
 @code {
-    [Parameter]
-    public int CourseId { get; set; }
-
-    [Parameter]
-    public int AttemptId { get; set; }
+    [Parameter] public int CourseId { get; set; }
+    [Parameter] public int AttemptId { get; set; }
 
     private QuizAttemptResultResponse? Result;
     private bool IsLoading = true;
@@ -118,13 +160,6 @@
         IsLoading = false;
     }
 
-    private void GoBackToCourse()
-    {
-        NavManager.NavigateTo($"/courses/{CourseId}");
-    }
-
-    private void RetakeQuiz()
-    {
-        NavManager.NavigateTo($"/courses/{CourseId}/quiz");
-    }
+    private void GoBackToCourse() => NavManager.NavigateTo($"/courses/{CourseId}");
+    private void RetakeQuiz() => NavManager.NavigateTo($"/courses/{CourseId}/quiz?retake=true");
 }

@@ -180,6 +180,9 @@ public class CategoryService : ICategoryService
         if (nameExistsOnOther)
             return Result.Failure<CategoryResponse>("CategoryAlreadyExists");
 
+        var oldName = category.CategoryName;
+        var oldDescription = category.Description;
+
         category.CategoryName = normalizedName;
         category.Description = request.Description?.Trim();
         category.UpdatedAt = DateTime.UtcNow;
@@ -189,12 +192,19 @@ public class CategoryService : ICategoryService
 
         if (_currentUserService.UserId.HasValue)
         {
+            var changes = new List<AuditLogChangeDto>();
+            if (!string.Equals(oldName, category.CategoryName, StringComparison.Ordinal))
+                changes.Add(new AuditLogChangeDto { Field = "Category Name", OldValue = oldName, NewValue = category.CategoryName });
+            if (!string.Equals(oldDescription ?? string.Empty, category.Description ?? string.Empty, StringComparison.Ordinal))
+                changes.Add(new AuditLogChangeDto { Field = "Description", OldValue = oldDescription, NewValue = category.Description });
+
             await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
             {
                 UserId = _currentUserService.UserId.Value,
                 Action = "Update",
                 TableName = "Categories",
-                RecordId = category.CategoryId
+                RecordId = category.CategoryId,
+                Changes = changes
             }, cancellationToken);
             
             _logger.LogInformation("User {UserId} updated Category {CategoryId} (Name={CategoryName})", _currentUserService.UserId.Value, category.CategoryId, category.CategoryName);

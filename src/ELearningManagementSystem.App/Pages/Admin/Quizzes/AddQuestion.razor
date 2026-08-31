@@ -1,0 +1,222 @@
+@page "/admin/quizzes/{QuizId:int}/questions/create"
+
+@using ELearningManagementSystem.App.Components.UI
+@attribute [Authorize(Policy = "Permission:Quiz.Create")]
+@inject QuizApiClient QuizClient
+@inject NavigationManager NavManager
+
+<PageTitle>Add Question</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+
+    <button @onclick="GoBack" class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
+        Back to Quiz
+    </button>
+
+    <div class="mb-4">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Add Question</h1>
+        <p class="text-sm text-slate-500 mt-1">Add a new question to "@QuizTitle".</p>
+    </div>
+
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>@ErrorMessage</p>
+                    </div>
+                </div>
+                <div class="ml-auto pl-3">
+                    <div class="-mx-1.5 -my-1.5">
+                        <button @onclick="() => ErrorMessage = null" type="button" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50">
+                            <span class="sr-only">Dismiss</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="max-w-3xl mx-auto bg-white shadow-lg sm:rounded-2xl border border-slate-200 p-8 animate-pulse">
+            <div class="h-5 bg-slate-200 rounded w-40 mb-6"></div>
+            <div class="space-y-4">
+                <div class="h-24 bg-slate-100 rounded-lg"></div>
+                <div class="h-10 bg-slate-100 rounded-lg"></div>
+                <div class="h-10 bg-slate-100 rounded-lg"></div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="max-w-5xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-6 sm:p-8 space-y-6">
+                <div>
+                    <label for="questionText" class="block text-sm font-semibold text-slate-700 mb-2">Question Text <span class="text-rose-500">*</span></label>
+                        <textarea id="questionText" rows="4" @bind="QuestionText" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" placeholder="Enter the question..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Answer Options <span class="text-xs text-slate-500">(at least 2 required, mark the correct answer)</span></label>
+                        @for (int i = 0; i < QuestionOptions.Count; i++)
+                        {
+                            var idx = i;
+                            <div class="flex items-center space-x-3 mb-2">
+                                <input type="text" @bind="QuestionOptions[idx].OptionText" class="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" placeholder="@($"Option {idx + 1}")" />
+                                <label class="flex items-center space-x-1.5 text-sm cursor-pointer">
+                                    <input type="checkbox" checked="@QuestionOptions[idx].IsCorrect" @onchange="(e) => QuestionOptions[idx].IsCorrect = (bool)(e.Value ?? false)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4" />
+                                    <span class="text-slate-600">Correct</span>
+                                </label>
+                                @if (QuestionOptions.Count > 2)
+                                {
+                                    <button type="button" @onclick="() => QuestionOptions.RemoveAt(idx)" class="text-red-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50" aria-label="Remove option">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                }
+                            </div>
+                        }
+                        <button type="button" @onclick="AddOptionRow" class="mt-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">+ Add another option</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50/75 border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-3">
+                <button type="button" @onclick="GoBack" class="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                <button type="button" @onclick="HandleSave" disabled="@IsSaving" class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition disabled:opacity-70">
+                    @if (IsSaving)
+                    {
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Adding...</span>
+                    }
+                    else
+                    {
+                        <span>Add Question</span>
+                    }
+                </button>
+            </div>
+        }
+    </div>
+
+@code {
+    [Parameter] public int QuizId { get; set; }
+
+    private bool IsLoading = true;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+
+    // Form State
+    private string QuizTitle = "Loading...";
+    private int CourseId;
+    private string QuestionText = string.Empty;
+    private List<CreateOptionClientRequest> QuestionOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var quiz = await QuizClient.GetQuizAsync(QuizId);
+            if (quiz != null)
+            {
+                QuizTitle = quiz.Title;
+                CourseId = quiz.CourseId;
+            }
+            else
+            {
+                ErrorMessage = "This quiz could not be found. It may have been archived or removed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load quiz details. " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+
+        // Start with two empty option rows
+        QuestionOptions = new()
+        {
+            new() { OptionText = string.Empty, IsCorrect = true },
+            new() { OptionText = string.Empty, IsCorrect = false }
+        };
+    }
+
+    private void AddOptionRow()
+    {
+        QuestionOptions.Add(new() { OptionText = string.Empty, IsCorrect = false });
+    }
+
+    private async Task HandleSave()
+    {
+        if (string.IsNullOrWhiteSpace(QuestionText))
+        {
+            ErrorMessage = "Question text is required.";
+            return;
+        }
+
+        var validOptions = QuestionOptions.Where(o => !string.IsNullOrWhiteSpace(o.OptionText)).ToList();
+        if (validOptions.Count < 2)
+        {
+            ErrorMessage = "At least 2 options are required.";
+            return;
+        }
+        if (!validOptions.Any(o => o.IsCorrect))
+        {
+            ErrorMessage = "At least one option must be marked as correct.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var response = await QuizClient.CreateQuestionAsync(QuizId, new CreateQuestionClientRequest
+            {
+                QuizId = QuizId,
+                QuestionText = QuestionText.Trim(),
+                DisplayOrder = 0,
+                Options = validOptions
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo($"/admin/courses/{CourseId}/quizzes?success={Uri.EscapeDataString("Question added.")}");
+            }
+            else
+            {
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred while adding the question: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        if (CourseId > 0)
+            NavManager.NavigateTo($"/admin/courses/{CourseId}/quizzes");
+        else
+            NavManager.NavigateTo("/admin/courses");
+    }
+}

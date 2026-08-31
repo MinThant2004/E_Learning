@@ -1,0 +1,372 @@
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.Application.Features.PaymentMethods.DTOs
+@inject ExamPaymentApiClient PaymentApiClient
+@inject PaymentMethodApiClient MethodApiClient
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+@if (IsOpen && ExamStatus != null)
+{
+    <!-- Outer overlay centered with fallback scroll -->
+    <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex items-center justify-center min-h-full animate-in fade-in">
+        
+        <!-- Modal Container Card -->
+        <div class="relative flex flex-col w-full max-w-xl max-h-[85vh] my-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            
+            <!-- Fixed Header -->
+            <div class="shrink-0 border-b border-slate-200 px-6 py-4 bg-white flex items-center justify-between z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-600/20 flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 leading-tight">Pay Exam Certification Fee</h3>
+                        <p class="text-xs font-semibold text-slate-500 truncate max-w-xs sm:max-w-sm">@ExamStatus.ExamTitle</p>
+                    </div>
+                </div>
+                <button type="button" @onclick="Close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Scrollable Content Body -->
+            <div class="flex-1 min-h-0 max-h-[60vh] overflow-y-auto px-6 py-5 space-y-5 text-sm">
+                
+                <!-- Exam Fee Summary Card -->
+                <div class="bg-indigo-600 rounded-xl p-4 text-white shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-200 block">Total Amount Due</span>
+                        <span class="text-2xl font-black text-white">@ExamStatus.ExamFee.ToString("N0") MMK</span>
+                    </div>
+                    <div class="text-right text-xs font-medium text-indigo-100">
+                        <span>Course: <strong class="text-white">@ExamStatus.CourseTitle</strong></span><br />
+                        <span>Duration: <strong class="text-white">@ExamStatus.DurationMinutes Mins</strong></span>
+                    </div>
+                </div>
+
+                <!-- Error Alert Banner -->
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between gap-3 animate-in fade-in">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>@ErrorMessage</span>
+                        </div>
+                        <button type="button" @onclick="() => ErrorMessage = null" class="text-rose-400 hover:text-rose-600 font-bold">✕</button>
+                    </div>
+                }
+
+                <!-- Section 1: Payment Gateway Selector -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">1. Select Payment Gateway</label>
+                    
+                    @if (IsLoadingMethods)
+                    {
+                        <div class="p-4 text-center text-xs text-slate-400 font-medium">Loading payment options...</div>
+                    }
+                    else if (PaymentMethods == null || !PaymentMethods.Any())
+                    {
+                        <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200 text-center text-xs font-bold text-slate-500">
+                            No payment gateways configured. Please contact admin.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            @foreach (var method in PaymentMethods)
+                            {
+                                var isSelected = SelectedMethod?.PaymentMethodId == method.PaymentMethodId;
+                                <button type="button" @onclick="() => SelectMethod(method)"
+                                        class="p-3 rounded-xl transition cursor-pointer flex flex-col items-center justify-center gap-2 @(isSelected ? "border-2 border-indigo-600 bg-indigo-50/70 text-indigo-950 font-black shadow-xs" : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 font-bold")">
+                                    <div class="h-9 w-24 flex items-center justify-center overflow-hidden">
+                                        @if (!string.IsNullOrEmpty(method.LogoUrl) && !FailedLogoIds.Contains(method.PaymentMethodId))
+                                        {
+                                            <img src="@GetAssetUrl(method.LogoUrl)" alt="@method.Name" @onerror="() => MarkLogoFailed(method.PaymentMethodId)"
+                                                 class="max-h-9 min-w-6 w-auto object-contain" />
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs font-extrabold text-slate-800">@method.Name</span>
+                                        }
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Section 2: Account Info Box -->
+                @if (SelectedMethod != null)
+                {
+                    <div class="border border-slate-200 bg-slate-50/80 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold text-slate-700">Official @SelectedMethod.Name Transfer Account</span>
+                            <button type="button" @onclick="CopyAccountNumber" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span>@(CopiedAlert ? "Copied!" : "Copy Number")</span>
+                            </button>
+                        </div>
+                        <div class="font-black text-indigo-950 text-lg tracking-wide">
+                            @SelectedMethod.AccountNumber
+                        </div>
+                        <p class="text-xs font-semibold text-slate-500">Account Name: <strong class="text-slate-800">@SelectedMethod.AccountName</strong></p>
+
+                        <p class="text-[11px] text-slate-500 leading-snug pt-1 border-t border-slate-200/80">
+                            Transfer exactly <strong class="text-slate-800">@ExamStatus.ExamFee.ToString("N0") MMK</strong> and enter the Transaction ID below.
+                        </p>
+                    </div>
+                }
+
+                <!-- Section 3: Transaction ID Input -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">2. Transaction ID / Reference Number</label>
+                    <input type="text" @bind="TransactionId" placeholder="e.g. 2026082900123456"
+                           class="w-full border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 rounded-xl px-4 py-2.5 bg-white text-slate-900 font-mono text-sm font-medium placeholder:text-slate-400 transition-all outline-none" />
+                </div>
+
+                <!-- Section 4: Upload Receipt Dropzone -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">3. Upload Receipt Screenshot</label>
+                    
+                    <div class="space-y-3">
+                        @if (string.IsNullOrEmpty(ImagePreviewUrl))
+                        {
+                            <!-- Custom Upload Dropzone -->
+                            <label class="relative border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/50 rounded-2xl p-5 text-center transition cursor-pointer block group">
+                                <InputFile @key="InputFileKey" OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.webp" class="sr-only" />
+                                
+                                <div class="space-y-2 pointer-events-none">
+                                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100/80 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-indigo-100 transition-all">
+                                        <svg class="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">Click or drag receipt screenshot image here</p>
+                                        <p class="text-xs text-slate-500 mt-0.5">Supports JPG, PNG, WEBP (Max 5MB)</p>
+                                    </div>
+                                </div>
+                            </label>
+                        }
+                        else
+                        {
+                            <!-- Card Thumbnail Preview -->
+                            <div class="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50/80 p-3 space-y-2 shadow-xs">
+                                <div class="h-44 w-full flex items-center justify-center overflow-hidden rounded-lg bg-white border border-slate-200 p-1">
+                                    <img src="@ImagePreviewUrl" alt="Receipt Preview" class="max-h-44 max-w-full object-contain rounded-lg" />
+                                </div>
+                                <div class="flex items-center justify-between px-1 text-xs">
+                                    <span class="truncate max-w-[200px] text-slate-700 font-semibold">@SelectedFileName</span>
+                                    <button type="button" @onclick="RemoveImage" class="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        <span>Change / Remove</span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Fixed Footer -->
+            <div class="shrink-0 border-t border-slate-200 px-6 py-4 bg-slate-50/80 flex items-center justify-end gap-3 z-10">
+                <button type="button" @onclick="Close" class="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs sm:text-sm transition-colors cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" @onclick="SubmitPayment" disabled="@IsSubmitting"
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer">
+                    @if (IsSubmitting)
+                    {
+                        <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Submitting Payment...</span>
+                    }
+                    else
+                    {
+                        <span>Submit Payment Receipt</span>
+                    }
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+
+    private string GetAssetUrl(string? url) =>
+        string.IsNullOrEmpty(url) ? string.Empty : $"{Http.BaseAddress?.ToString().TrimEnd('/')}{url}";
+
+    private HashSet<int> FailedLogoIds { get; set; } = new HashSet<int>();
+
+    private void MarkLogoFailed(int id) => FailedLogoIds.Add(id);
+    [Parameter] public StudentCourseExamStatusResponse? ExamStatus { get; set; }
+    [Parameter] public EventCallback OnPaymentSubmitted { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private List<PaymentMethodResponse>? PaymentMethods;
+    private PaymentMethodResponse? SelectedMethod;
+    private bool IsLoadingMethods = true;
+    private string TransactionId = string.Empty;
+    private byte[]? SelectedFileBytes;
+    private string? SelectedFileName;
+    private string SelectedContentType = "image/jpeg";
+    private string? ImagePreviewUrl;
+    private bool IsSubmitting = false;
+    private string? ErrorMessage;
+    private bool CopiedAlert = false;
+    private int InputFileKey = 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && ExamStatus != null)
+        {
+            TransactionId = string.Empty;
+            SelectedFileBytes = null;
+            ImagePreviewUrl = null;
+            ErrorMessage = null;
+            CopiedAlert = false;
+            await LoadPaymentMethods();
+        }
+    }
+
+    private async Task LoadPaymentMethods()
+    {
+        IsLoadingMethods = true;
+        try
+        {
+            PaymentMethods = await MethodApiClient.GetActivePaymentMethodsAsync();
+            if (PaymentMethods != null && PaymentMethods.Any())
+            {
+                SelectedMethod = PaymentMethods.First();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Unable to load payment methods: " + ex.Message;
+        }
+        finally
+        {
+            IsLoadingMethods = false;
+        }
+    }
+
+    private void SelectMethod(PaymentMethodResponse method)
+    {
+        SelectedMethod = method;
+    }
+
+    private async Task CopyAccountNumber()
+    {
+        if (SelectedMethod == null) return;
+        var acc = SelectedMethod.AccountNumber.Split(' ')[0];
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", acc);
+            CopiedAlert = true;
+            StateHasChanged();
+            await Task.Delay(2000);
+            CopiedAlert = false;
+            StateHasChanged();
+        }
+        catch {}
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                ErrorMessage = "Receipt file size must be under 5MB.";
+                return;
+            }
+
+            SelectedFileName = file.Name;
+            SelectedContentType = file.ContentType;
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            SelectedFileBytes = ms.ToArray();
+
+            ImagePreviewUrl = $"data:{SelectedContentType};base64,{Convert.ToBase64String(SelectedFileBytes)}";
+            ErrorMessage = null;
+        }
+    }
+
+    private void RemoveImage()
+    {
+        SelectedFileBytes = null;
+        SelectedFileName = null;
+        ImagePreviewUrl = null;
+        InputFileKey++;
+    }
+
+    private async Task SubmitPayment()
+    {
+        if (SelectedMethod == null)
+        {
+            ErrorMessage = "Please select a payment gateway.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TransactionId))
+        {
+            ErrorMessage = "Please enter your payment Transaction ID.";
+            return;
+        }
+
+        if (SelectedFileBytes == null)
+        {
+            ErrorMessage = "Please upload a receipt screenshot image.";
+            return;
+        }
+
+        IsSubmitting = true;
+        ErrorMessage = null;
+
+        try
+        {
+            var response = await PaymentApiClient.SubmitPaymentAsync(
+                ExamStatus!.ExamId,
+                SelectedMethod.Name,
+                TransactionId,
+                SelectedFileBytes,
+                SelectedFileName ?? "screenshot.jpg",
+                SelectedContentType
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                await OnPaymentSubmitted.InvokeAsync();
+            }
+            else
+            {
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Submission failed: " + ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private async Task Close() => await OnClose.InvokeAsync();
+}

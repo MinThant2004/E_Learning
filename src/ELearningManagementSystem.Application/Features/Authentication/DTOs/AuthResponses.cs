@@ -13,14 +13,16 @@ public record AuthUserDto(
     string FullName,
     string Email,
     string Role,
-    List<string> Permissions);
+    List<string> Permissions,
+    bool MustChangePassword);
 
 public record CurrentUserResponse(
     int UserId,
     string FullName,
     string Email,
     string Role,
-    List<string> Permissions);
+    List<string> Permissions,
+    bool MustChangePassword);
 
 public record RegisterResponse(
     int UserId,

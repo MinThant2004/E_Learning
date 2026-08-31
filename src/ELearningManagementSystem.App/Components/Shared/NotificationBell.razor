@@ -1,0 +1,215 @@
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.Application.Features.Notifications.DTOs
+@using System.Threading
+@implements IDisposable
+@inject NotificationApiClient NotificationApiClient
+@inject NavigationManager NavManager
+
+<div class="relative inline-block">
+    <!-- Notification Bell Button with Smartphone-Style Red Dot Badge -->
+    <button @onclick="ToggleDropdown"
+            class="relative p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all focus:outline-none cursor-pointer"
+            title="System Notifications">
+        
+        <!-- Bell SVG Icon -->
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+
+        <!-- Smartphone-Style Red Notification Mark Dot (Classic iOS / Android Dot) -->
+        @if (UnreadCount > 0)
+        {
+            <span class="absolute top-1 right-1 flex h-2.5 w-2.5 z-20">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 border-2 border-white shadow-xs"></span>
+            </span>
+        }
+    </button>
+
+    <!-- Notification Dropdown Panel -->
+    @if (IsOpen)
+    {
+        <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+        <div class="absolute right-0 top-11 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden space-y-0">
+            
+            <!-- Dropdown Header -->
+            <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-700">Notifications</h4>
+                    @if (UnreadCount > 0)
+                    {
+                        <span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold">@UnreadCount New</span>
+                    }
+                </div>
+                <button @onclick="RefreshNotifications" title="Refresh notifications"
+                        class="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center justify-center"
+                        aria-label="Refresh notifications">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 11-2.642-6.364" />
+                        <path d="M21 3v6h-6" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Notification Items List -->
+            <div class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                @if (IsLoading)
+                {
+                    <div class="p-4 text-center text-xs text-slate-400 font-medium">Loading notifications...</div>
+                }
+                else if (Notifications == null || !Notifications.Any())
+                {
+                    <div class="p-6 text-center text-xs text-slate-400 font-medium">
+                        <span>No new notifications</span>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var item in Notifications)
+                    {
+                        <div @onclick="() => HandleItemClick(item)"
+                             class="p-3.5 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3 bg-indigo-50/40 border-l-2 border-indigo-600">
+                            <div class="p-2 rounded-xl text-base flex-shrink-0 @GetBadgeClass(item.Type)">
+                                @GetIcon(item.Type)
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h5 class="text-xs font-bold text-slate-900 leading-tight">@item.Title</h5>
+                                <p class="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-2">@item.Message</p>
+                                <span class="text-[10px] text-slate-400 font-semibold mt-1 block">@item.TimeAgo</span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+        </div>
+    }
+</div>
+
+@code {
+    private bool IsOpen = false;
+    private bool IsLoading = false;
+    private int UnreadCount = 0;
+    private List<UserNotificationResponse>? Notifications;
+    private Timer? _pollingTimer;
+
+    // Ids the user has already dismissed this session (optimistic read).
+    // Keeps the badge hidden instantly and stops the poller from resurrecting
+    // an item that the background "mark as read" hasn't finished persisting yet.
+    private readonly HashSet<int> _dismissedIds = new HashSet<int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotifications();
+
+        // Auto-polling timer checks for new notifications every 10 seconds
+        _pollingTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadNotifications();
+                StateHasChanged();
+            });
+        }, null, 10000, 10000);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadNotifications();
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDropdown()
+    {
+        IsOpen = !IsOpen;
+        if (IsOpen)
+        {
+            _ = LoadNotifications();
+        }
+    }
+
+    private void CloseDropdown() => IsOpen = false;
+
+    private async Task RefreshNotifications()
+    {
+        await LoadNotifications();
+    }
+
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            var result = await NotificationApiClient.GetMyNotificationsAsync();
+            if (result != null)
+            {
+                // Only show UNREAD notifications so read ones disappear (and never
+                // resurrect ones the user already dismissed this session).
+                Notifications = result.Where(n => !n.IsRead && !_dismissedIds.Contains(n.NotificationId)).ToList();
+                UnreadCount = Notifications.Count;
+            }
+        }
+        catch
+        {
+            // Suppress background poll errors
+        }
+    }
+
+    private void HandleItemClick(UserNotificationResponse item)
+    {
+        // 1. INSTANT OPTIMISTIC UI UPDATE (0ms, no network wait)
+        IsOpen = false;
+        _dismissedIds.Add(item.NotificationId);
+        Notifications?.Remove(item);
+        UnreadCount = Notifications?.Count(n => !n.IsRead && !_dismissedIds.Contains(n.NotificationId)) ?? 0;
+        StateHasChanged();
+
+        // 2. Fire-and-forget background API call to mark as read.
+        //    The client already updated optimistically; failures are logged
+        //    gracefully instead of blocking or crashing the UI.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await NotificationApiClient.MarkAsReadAsync(item.NotificationId);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"NotificationBell: failed to mark notification {item.NotificationId} as read - {ex.Message}");
+            }
+        });
+
+        // 3. Immediate navigation to target URL (no UI lag).
+        //    Admin Payment Submission -> /admin/payments
+        //    Student Payment Approval/Rejection -> /course-exams
+        if (!string.IsNullOrEmpty(item.TargetUrl))
+        {
+            NavManager.NavigateTo(item.TargetUrl);
+        }
+    }
+
+    private static string GetIcon(string type) => type switch
+    {
+        "PaymentApproved" => "🎉",
+        "PaymentRejected" => "⚠️",
+        "PaymentSubmitted" => "📥",
+        _ => "🔔"
+    };
+
+    private static string GetBadgeClass(string type) => type switch
+    {
+        "PaymentApproved" => "bg-emerald-50 text-emerald-600 border border-emerald-200",
+        "PaymentRejected" => "bg-rose-50 text-rose-600 border border-rose-200",
+        "PaymentSubmitted" => "bg-indigo-50 text-indigo-600 border border-indigo-200",
+        _ => "bg-slate-100 text-slate-600"
+    };
+
+    public void Dispose()
+    {
+        _pollingTimer?.Dispose();
+    }
+}

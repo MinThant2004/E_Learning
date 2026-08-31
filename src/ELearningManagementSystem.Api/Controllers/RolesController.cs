@@ -59,6 +59,6 @@ public class RolesController : ControllerBase
     {
         var result = await _roleService.AssignPermissionsAsync(id, request);
         if (result.IsSuccess) return Ok();
-        return BadRequest(new { error = result.Error });
+        return result.ToActionResult();
     }
 }

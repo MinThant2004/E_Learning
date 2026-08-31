@@ -8,10 +8,19 @@ public interface IAppDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Category> Categories { get; }
     DbSet<Course> Courses { get; }
+    DbSet<CourseExam> CourseExams { get; }
+    DbSet<ExamQuestion> ExamQuestions { get; }
+    DbSet<ExamQuestionOption> ExamQuestionOptions { get; }
+    DbSet<ExamPayment> ExamPayments { get; }
+    DbSet<CourseExamAttempt> CourseExamAttempts { get; }
+    DbSet<CourseExamAttemptAnswer> CourseExamAttemptAnswers { get; }
+    DbSet<PaymentMethod> PaymentMethods { get; }
+    DbSet<UserNotification> UserNotifications { get; }
     DbSet<Enrollment> Enrollments { get; }
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonProgress> LessonProgresses { get; }
     DbSet<Permission> Permissions { get; }
+    DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<Question> Questions { get; }
     DbSet<QuestionOption> QuestionOptions { get; }
     DbSet<Quiz> Quizzes { get; }

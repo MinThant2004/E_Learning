@@ -18,9 +18,12 @@ public class AdminDashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetDashboard()
+    public async Task<IActionResult> GetDashboard(
+        [FromQuery] string range = "monthly",
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
     {
-        var result = await _adminDashboardService.GetDashboardAsync();
+        var result = await _adminDashboardService.GetDashboardAsync(range, startDate, endDate);
         
         if (result.IsSuccess)
         {

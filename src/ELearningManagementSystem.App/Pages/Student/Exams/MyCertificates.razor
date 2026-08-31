@@ -1,0 +1,136 @@
+@page "/my-certificates"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.Application.Features.ExamEngine.DTOs
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ExamEngineApiClient EngineApiClient
+@inject NavigationManager NavManager
+
+<PageTitle>My Certificates - EduSphere</PageTitle>
+
+<div class="bg-slate-50 min-h-screen py-8 text-slate-800">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-6">
+
+        <!-- Top Header Banner -->
+        <PageHeader Title="My Earned Certificates" Description="Access, view, and download your official course certificates.">
+            <ActionTemplate>
+                <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                        class="px-4 py-2 bg-white text-slate-700 hover:bg-slate-100 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm shrink-0">
+                    Back to Course Exams
+                </button>
+            </ActionTemplate>
+        </PageHeader>
+
+        @if (IsLoading)
+        {
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3 shadow-2xs">
+                <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p class="text-xs font-semibold text-slate-500">Loading your earned certificates...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <EmptyState Title="Unable to Load Certificates" Description="@ErrorMessage">
+                <ActionTemplate>
+                    <button @onclick='() => NavManager.NavigateTo("/course-exams")'
+                            class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs transition-all cursor-pointer">
+                        Back to Course Exams
+                    </button>
+                </ActionTemplate>
+            </EmptyState>
+        }
+        else if (!Certificates.Any())
+        {
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-2xs">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mx-auto font-bold">
+                    🎓
+                </div>
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-900">No Certificates Earned Yet</h3>
+                    <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                        Complete and pass a course certification examination to earn your official digital credential.
+                    </p>
+                </div>
+                <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs">
+                    Browse Course Exams
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Compact Certificate Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @foreach (var cert in Certificates)
+                {
+                    <div class="bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 transition-all p-5 space-y-4 shadow-2xs flex flex-col justify-between">
+                        
+                        <div class="space-y-2">
+                            <!-- Status Badge -->
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                    ✓ Certificate Earned
+                                </span>
+                            </div>
+
+                            <!-- Titles -->
+                            <div>
+                                <h3 class="text-base font-extrabold text-slate-900 leading-snug">@cert.CourseTitle</h3>
+                                <p class="text-xs font-semibold text-slate-500 mt-0.5">@cert.ExamTitle</p>
+                            </div>
+                        </div>
+
+                        <!-- Score & Issue Date -->
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <div class="space-x-2">
+                                <span class="text-slate-400 font-medium">Score:</span>
+                                <span class="font-extrabold text-emerald-600">@cert.Score.ToString("N0")%</span>
+                            </div>
+
+                            <div class="space-x-2">
+                                <span class="text-slate-400 font-medium">Issued:</span>
+                                <span class="font-bold text-slate-700">@cert.IssuedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                        </div>
+
+                        <!-- Direct Page Navigation Action -->
+                        <button type="button" @onclick='() => NavManager.NavigateTo($"/certificates/{cert.AttemptId}")'
+                                class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>View Certificate</span>
+                        </button>
+
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private List<PublicCertificateResponse> Certificates = new();
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            Certificates = await EngineApiClient.GetMyCertificatesAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

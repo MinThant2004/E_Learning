@@ -6,6 +6,13 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.DTOs
     {
         public Dictionary<string, ContentMetricResponse> Metrics { get; set; } = new();
         public List<AdminQuickActionResponse> QuickActions { get; set; } = new();
+
+        public EnrollmentAnalyticsResponse? EnrollmentAnalytics { get; set; }
+        public CourseCompletionStatsDto? CompletionStats { get; set; }
+        public QuizPerformanceStatsDto? QuizPerformance { get; set; }
+
+        public List<PopularCourseSummaryDto> PopularCourses { get; set; } = new();
+        public List<RecentActivityItemDto> RecentActivities { get; set; } = new();
     }
 
     public class ContentMetricResponse

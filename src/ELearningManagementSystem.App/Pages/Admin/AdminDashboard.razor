@@ -1,21 +1,99 @@
+@page "/admin/dashboard"
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject AdminDashboardApiClient DashboardClient
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
 
 <PageTitle>Admin Dashboard</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-        <p class="mt-2 text-sm text-slate-600">Overview of system content and activity.</p>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-6">
+    
+    @* ── PHASE 1: Top Header Flex Bar ───────────────────────────────────────── *@
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard Overview</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">
+                Real-time LMS metrics, student enrollments, and system logs • @DateTime.Now.ToString("dd-MM-yyyy")
+            </p>
+        </div>
+
+        @* Refresh Button *@
+        <button @onclick="RefreshDashboard" disabled="@IsLoading"
+                class="inline-flex items-center px-4 py-2 rounded-full text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto">
+            <svg class="w-3.5 h-3.5 mr-1.5 text-indigo-100 @(IsLoading ? "animate-spin" : "")" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+        </button>
     </div>
 
-    @if (IsLoading)
+    @* ── Global Date Range Filter Bar ─────────────────────────────────────── *@
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm px-4 py-3 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            @* Preset Pill Buttons *@
+            <div class="inline-flex rounded-full bg-slate-100 p-1 flex-shrink-0">
+                <button type="button" @onclick='() => ChangeTimeframe("daily")' disabled="@IsLoading"
+                        class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all disabled:opacity-50 disabled:cursor-not-allowed @(CurrentRange == "daily" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                    Daily
+                </button>
+                <button type="button" @onclick='() => ChangeTimeframe("weekly")' disabled="@IsLoading"
+                        class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all disabled:opacity-50 disabled:cursor-not-allowed @(CurrentRange == "weekly" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                    Weekly
+                </button>
+                <button type="button" @onclick='() => ChangeTimeframe("monthly")' disabled="@IsLoading"
+                        class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all disabled:opacity-50 disabled:cursor-not-allowed @(CurrentRange == "monthly" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                    Monthly
+                </button>
+                <button type="button" @onclick="ActivateCustomRange"
+                        class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all @(CurrentRange == "custom" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                    Custom
+                </button>
+            </div>
+
+            @* Custom Date Pickers (shown only when Custom is active) *@
+            @if (CurrentRange == "custom")
+            {
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-xs font-bold text-slate-500">From</label>
+                        <DateInput @bind-Date="CustomStartDate" Size="DateInputSize.Sm" Max="DateTime.Today" AriaLabel="Start Date" />
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-xs font-bold text-slate-500">To</label>
+                        <DateInput @bind-Date="CustomEndDate" Size="DateInputSize.Sm" Max="DateTime.Today" AriaLabel="End Date" />
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-bold">(dd-mm-yyyy)</span>
+                    <button type="button" @onclick="ApplyCustomRange" disabled="@IsLoading"
+                            class="px-4 py-1.5 rounded-full text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50">
+                        Apply
+                    </button>
+                </div>
+            }
+
+            @* Active Range Label *@
+            <div class="text-xs font-bold text-slate-400 sm:ml-auto flex-shrink-0">
+                @GetActiveRangeLabel()
+            </div>
+        </div>
+
+        @* Custom Date Validation Error *@
+        @if (!string.IsNullOrEmpty(CustomDateError))
+        {
+            <div class="mt-2 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-rose-600 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                @CustomDateError
+            </div>
+        }
+    </div>
+
+    @if (IsLoading && Dashboard == null)
     {
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -26,7 +104,7 @@
     {
         <EmptyState Title="Dashboard Unavailable" Description="@ErrorMessage">
             <Icon>
-                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="mx-auto h-12 w-12 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </Icon>
@@ -34,112 +112,590 @@
     }
     else if (Dashboard != null)
     {
-        @if (Dashboard.Metrics.Any())
-        {
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                @foreach (var metric in Dashboard.Metrics.Values)
+        @* ── PHASE 2: Top Row — 4 Refactored Primary KPI Cards ────────────────────── *@
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
+            
+            @* KPI Card 1: Active Users / Students *@
+            @{
+                var hasUsersMetric = Dashboard.Metrics.TryGetValue("Users", out var userMetric);
+                var activeUsersCount = userMetric?.ActiveCount ?? 0;
+                var totalUsersCount = userMetric?.TotalCount ?? 0;
+            }
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-all">
+                <div class="flex items-center gap-3.5">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 block">Active Users</span>
+                        <span class="text-2xl font-black text-slate-900 leading-tight">@activeUsersCount</span>
+                    </div>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    @activeUsersCount/@totalUsersCount Active
+                </span>
+            </div>
+
+            @* KPI Card 2: Active Courses *@
+            @{
+                var hasCoursesMetric = Dashboard.Metrics.TryGetValue("Courses", out var courseMetric);
+                var activeCoursesCount = courseMetric?.ActiveCount ?? 0;
+                var totalCoursesCount = courseMetric?.TotalCount ?? 0;
+            }
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-all">
+                <div class="flex items-center gap-3.5">
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 block">Active Courses</span>
+                        <span class="text-2xl font-black text-slate-900 leading-tight">@activeCoursesCount</span>
+                    </div>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                    @activeCoursesCount/@totalCoursesCount Total
+                </span>
+            </div>
+
+            @* KPI Card 3: Total Enrollments *@
+            @{
+                var totalEnrollments = Dashboard.CompletionStats?.TotalEnrollments ?? 0;
+                var peakEnrollment = Dashboard.EnrollmentAnalytics?.Trends.Any() == true
+                    ? Dashboard.EnrollmentAnalytics.Trends.Max(t => t.Count)
+                    : 0;
+            }
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-all">
+                <div class="flex items-center gap-3.5">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 block">Total Enrollments</span>
+                        <span class="text-2xl font-black text-slate-900 leading-tight">@totalEnrollments</span>
+                    </div>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    Peak: @peakEnrollment
+                </span>
+            </div>
+
+            @* KPI Card 4: Avg. Course Completion *@
+            @{
+                var completionRate = Dashboard.CompletionStats?.CompletionRatePercentage ?? 0;
+                var completedStudents = Dashboard.CompletionStats?.CompletedCount ?? 0;
+            }
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition-all">
+                <div class="flex items-center gap-3.5">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 block">Avg. Completion</span>
+                        <span class="text-2xl font-black text-slate-900 leading-tight">@completionRate%</span>
+                    </div>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                    @completedStudents/@totalEnrollments Done
+                </span>
+            </div>
+
+        </div>
+
+        @* ── MAIN WORKSPACE: 2-Column Split (Left 65% / Right 35%) ────────────── *@
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            @* ── PHASE 3: LEFT COLUMN (~65% Width — col-span-8) ───────────────────── *@
+            <div class="lg:col-span-8 space-y-6">
+
+                @* ── Left Item 1: Real-World Enrollment Growth Line Chart ────────── *@
+                @if (Dashboard.EnrollmentAnalytics != null)
                 {
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col hover:shadow-md transition-shadow">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-bold text-slate-900">@metric.Title</h3>
-                            <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                                @if (metric.Icon == "folder")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                    </svg>
-                                }
-                                else if (metric.Icon == "book")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                    </svg>
-                                }
-                                else if (metric.Icon == "document-text")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                }
-                                else if (metric.Icon == "check-circle")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                }
-                                else if (metric.Icon == "users")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                    </svg>
-                                }
-                            </div>
+                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-extrabold text-slate-900">Enrollment Growth</h3>
+                            <p class="text-xs font-semibold text-slate-400 mt-0.5">Student course registration time-series analytics</p>
                         </div>
-                        <div class="mt-2">
-                            <span class="text-3xl font-extrabold text-slate-900">@metric.TotalCount</span>
-                            <span class="text-sm font-medium text-slate-500 ml-2">Total</span>
-                        </div>
-                        <div class="mt-4 flex items-center justify-between text-sm">
-                            <div class="flex items-center text-green-700">
-                                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                                @metric.ActiveCount Active
+
+                        @if (Dashboard.EnrollmentAnalytics.Trends.Any())
+                        {
+                            var trends = Dashboard.EnrollmentAnalytics.Trends;
+                            var maxCount = Math.Max(5, trends.Max(t => t.Count));
+                            var splinePoints = GetSvgSplinePoints(trends, maxCount);
+                            var splineAreaPath = GetSvgSplineAreaPath(trends, maxCount);
+                            var activeIndex = HoveredTrendIndex ?? (trends.Count - 1);
+                            var activeItem = trends[Math.Clamp(activeIndex, 0, trends.Count - 1)];
+
+                            @* Live Interactive Tooltip Header Bar *@
+                            <div class="flex items-center justify-between bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-indigo-50/90 border border-indigo-100/90 rounded-2xl px-4 py-2.5 mb-4 text-xs shadow-2xs">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="relative flex h-2.5 w-2.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-600"></span>
+                                    </span>
+                                    <span class="font-bold text-slate-700">Date: <span class="text-indigo-950 font-extrabold">@activeItem.DateLabel</span></span>
+                                </div>
+                                <div class="flex items-center gap-2 font-bold text-slate-700">
+                                    <span>Enrollments:</span>
+                                    <span class="px-3 py-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full font-black text-xs shadow-xs">
+                                        @activeItem.Count
+                                    </span>
+                                </div>
                             </div>
-                            <div class="flex items-center text-slate-500">
-                                <span class="w-2 h-2 bg-slate-300 rounded-full mr-2"></span>
-                                @metric.ArchivedCount Archived
-                            </div>
-                        </div>
-                        <div class="mt-6 pt-4 border-t border-slate-100">
-                            <a href="@metric.Route" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors flex items-center">
-                                Manage @metric.Title
-                                <svg class="ml-1 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+
+                            <div class="relative w-full h-56 pt-2">
+                                <svg class="w-full h-full overflow-visible" viewBox="0 0 500 160" preserveAspectRatio="none">
+                                    <defs>
+                                        @* Dual-Tone Area Fill Gradient *@
+                                        <linearGradient id="splineAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.32" />
+                                            <stop offset="60%" stop-color="#a855f7" stop-opacity="0.08" />
+                                            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.0" />
+                                        </linearGradient>
+
+                                        @* Dual-Tone Stroke Gradient *@
+                                        <linearGradient id="splineStrokeGradient" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stop-color="#4f46e5" />
+                                            <stop offset="50%" stop-color="#7c3aed" />
+                                            <stop offset="100%" stop-color="#9333ea" />
+                                        </linearGradient>
+                                    </defs>
+
+                                    @* Horizontal Reference Grid Lines *@
+                                    <line x1="0" y1="20" x2="500" y2="20" stroke="#f1f5f9" stroke-width="1" />
+                                    <line x1="0" y1="60" x2="500" y2="60" stroke="#f1f5f9" stroke-width="1" />
+                                    <line x1="0" y1="100" x2="500" y2="100" stroke="#f1f5f9" stroke-width="1" />
+                                    <line x1="0" y1="140" x2="500" y2="140" stroke="#cbd5e1" stroke-width="1.5" />
+
+                                    @* Y-Axis Scale Reference Labels *@
+                                    <text x="5" y="16" fill="#94a3b8" font-size="9" font-weight="700">@maxCount</text>
+                                    <text x="5" y="76" fill="#94a3b8" font-size="9" font-weight="700">@(maxCount / 2)</text>
+                                    <text x="5" y="136" fill="#94a3b8" font-size="9" font-weight="700">0</text>
+
+                                    @* Dual-Tone Curved Area Fill & Bezier Spline Path *@
+                                    <path d="@splineAreaPath" fill="url(#splineAreaGradient)" />
+                                    <path d="@splinePoints" fill="none" stroke="url(#splineStrokeGradient)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+
+                                    @* Crosshair Vertical Line on Hover *@
+                                    @{
+                                        var (hx, hy) = GetCoordinate(activeIndex, activeItem.Count, trends.Count, maxCount);
+                                    }
+                                    <line x1="@hx" y1="10" x2="@hx" y2="140" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,3" />
+                                    
+                                    @* Normal Compact Focus Marker on Hovered Node *@
+                                    <circle cx="@hx" cy="@hy" r="5.5" fill="none" stroke="#c084fc" stroke-width="1.5" />
+                                    <circle cx="@hx" cy="@hy" r="3.5" class="fill-purple-600 stroke-white stroke-2 shadow-xs" />
+
+                                    @* Floating Compact Hover Tooltip Callout Badge *@
+                                    @if (HoveredTrendIndex.HasValue)
+                                    {
+                                        double tx = Math.Clamp(hx, 45.0, 455.0);
+                                        double ty = Math.Max(24.0, hy - 14.0);
+
+                                        <g class="transition-all duration-150 pointer-events-none drop-shadow-md">
+                                            @* Pointer Arrow Triangle *@
+                                            <polygon points="@($"{hx},{hy - 4} {hx - 3.5},{hy - 8} {hx + 3.5},{hy - 8}")" fill="#0f172a" />
+                                            
+                                            @* Tooltip Background Box *@
+                                            <rect x="@(tx - 40)" y="@(ty - 20)" width="80" height="22" rx="5" ry="5"
+                                                  fill="#0f172a" stroke="#334155" stroke-width="1" />
+
+                                            @* Date & Enrollment Count Text *@
+                                            <svg:text x="@tx" y="@(ty - 6)" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="800">
+                                                @activeItem.DateLabel: @activeItem.Count
+                                            </svg:text>
+                                        </g>
+                                    }
+
+                                    @* Data Nodes Rendered Across Data Points *@
+                                    @for (int i = 0; i < trends.Count; i++)
+                                    {
+                                        var item = trends[i];
+                                        var (cx, cy) = GetCoordinate(i, item.Count, trends.Count, maxCount);
+                                        <g class="group cursor-pointer">
+                                            @if (item.Count > 0)
+                                            {
+                                                <circle cx="@cx" cy="@cy" r="3.5" class="fill-white stroke-indigo-600 stroke-2 group-hover:r-4.5 transition-all">
+                                                    <title>@item.DateLabel: @item.Count enrollment(s)</title>
+                                                </circle>
+                                            }
+                                            else
+                                            {
+                                                <circle cx="@cx" cy="@cy" r="2" class="fill-slate-300 stroke-slate-300 group-hover:fill-purple-500 group-hover:stroke-purple-600 group-hover:r-3.5 transition-all">
+                                                    <title>@item.DateLabel: 0 enrollments</title>
+                                                </circle>
+                                            }
+                                        </g>
+                                    }
+
+                                    @* Invisible Vertical Rect Hit Columns *@
+                                    @{
+                                        double colWidth = trends.Count > 1 ? 500.0 / (trends.Count - 1) : 500;
+                                    }
+                                    @for (int i = 0; i < trends.Count; i++)
+                                    {
+                                        var index = i;
+                                        var (cx, _) = GetCoordinate(i, trends[i].Count, trends.Count, maxCount);
+                                        var rx = Math.Max(0, cx - (colWidth / 2));
+                                        <rect x="@rx" y="0" width="@colWidth" height="150" fill="transparent" class="cursor-pointer"
+                                              @onmouseenter="() => HoveredTrendIndex = index"
+                                              @onmouseleave="() => HoveredTrendIndex = null" />
+                                    }
                                 </svg>
-                            </a>
+                            </div>
+
+                            @* Dynamic X-Axis Date Tick Labels *@
+                            <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500 overflow-x-auto">
+                                @if (CurrentRange == "daily" || CurrentRange == "weekly")
+                                {
+                                    @for (int i = 0; i < trends.Count; i++)
+                                    {
+                                        var idx = i;
+                                        var item = trends[i];
+                                        <div class="flex flex-col items-center cursor-pointer transition-colors @(HoveredTrendIndex == idx ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-900")"
+                                             @onmouseenter="() => HoveredTrendIndex = idx"
+                                             @onmouseleave="() => HoveredTrendIndex = null">
+                                            <span>@item.DateLabel</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">@item.Date.ToString("ddd")</span>
+                                        </div>
+                                    }
+                                }
+                                else if (CurrentRange == "monthly")
+                                {
+                                    @for (int i = 0; i < trends.Count; i += 5)
+                                    {
+                                        var idx = i;
+                                        var item = trends[i];
+                                        <div class="flex flex-col items-center cursor-pointer transition-colors @(HoveredTrendIndex == idx ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-900")"
+                                             @onmouseenter="() => HoveredTrendIndex = idx"
+                                             @onmouseleave="() => HoveredTrendIndex = null">
+                                            <span>@item.DateLabel</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Day @(i + 1)</span>
+                                        </div>
+                                    }
+                                    @if (trends.Count % 5 != 1)
+                                    {
+                                        var lastIdx = trends.Count - 1;
+                                        var lastItem = trends.Last();
+                                        <div class="flex flex-col items-center cursor-pointer transition-colors @(HoveredTrendIndex == lastIdx ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-900")"
+                                             @onmouseenter="() => HoveredTrendIndex = lastIdx"
+                                             @onmouseleave="() => HoveredTrendIndex = null">
+                                            <span>@lastItem.DateLabel</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Day @trends.Count</span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    @for (int i = 0; i < trends.Count; i++)
+                                    {
+                                        var idx = i;
+                                        var item = trends[i];
+                                        <div class="flex flex-col items-center cursor-pointer transition-colors @(HoveredTrendIndex == idx ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-900")"
+                                             @onmouseenter="() => HoveredTrendIndex = idx"
+                                             @onmouseleave="() => HoveredTrendIndex = null">
+                                            <span>@item.Date.ToString("MMM")</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">@item.Date.ToString("yyyy")</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="h-48 flex items-center justify-center text-slate-400 text-xs font-semibold">
+                                No enrollment records found for this timeframe.
+                            </div>
+                        }
+
+                        @* Summary Metrics Footer *@
+                        <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500">
+                            <span>Total Period Enrollments: <strong class="text-slate-900">@Dashboard.EnrollmentAnalytics.Trends.Sum(t => t.Count)</strong></span>
+                            <span class="text-indigo-600 font-bold">@(IsMonthGroupedTrend ? "Peak Monthly Volume" : "Peak Single Day"): @Dashboard.EnrollmentAnalytics.Trends.Max(t => t.Count)</span>
                         </div>
                     </div>
                 }
-            </div>
-            
-            @if (Dashboard.QuickActions.Any())
-            {
-                <h2 class="text-xl font-bold text-slate-900 mb-6">Quick Actions</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    @foreach (var action in Dashboard.QuickActions)
-                    {
-                        <a href="@action.Route" class="group bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-start hover:border-indigo-300 hover:shadow-md transition-all">
-                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors mr-4">
-                                @if (action.Icon == "plus")
-                                {
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
-                                }
-                            </div>
-                            <div>
-                                <h4 class="text-base font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">@action.Title</h4>
-                                <p class="text-sm text-slate-500 mt-1">@action.Description</p>
-                            </div>
+
+                @* ── Left Item 2: Popular Courses Summary Table ──────────────────── *@
+                <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900">Popular Courses</h3>
+                            <p class="text-xs font-semibold text-slate-400 mt-0.5">Top performing courses by student enrollment & completion</p>
+                        </div>
+                        <a href="/admin/courses" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+                            View All Courses →
                         </a>
+                    </div>
+
+                    @if (Dashboard.PopularCourses != null && Dashboard.PopularCourses.Any())
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <th class="pb-3 pl-2">Course Title</th>
+                                        <th class="pb-3 text-center">Enrolled</th>
+                                        <th class="pb-3 pr-2 text-right">Completion Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-xs">
+                                    @foreach (var course in Dashboard.PopularCourses)
+                                    {
+                                        <tr class="hover:bg-slate-50/60 transition-colors group">
+                                            <td class="py-3.5 pl-2">
+                                                <div class="font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors">@course.Title</div>
+                                                <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
+                                                    @course.CategoryName
+                                                </span>
+                                            </td>
+                                            <td class="py-3.5 text-center font-black text-slate-900">
+                                                @course.EnrolledStudentsCount
+                                            </td>
+                                            <td class="py-3.5 pr-2 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <div class="w-24 bg-slate-100 rounded-full h-2 overflow-hidden hidden sm:block">
+                                                        <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: @(course.CompletionRatePercentage)%"></div>
+                                                    </div>
+                                                    <span class="font-extrabold text-slate-900">@course.CompletionRatePercentage%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="py-10 text-center text-xs font-medium text-slate-400">
+                            No enrolled courses recorded yet.
+                        </div>
                     }
                 </div>
-            }
-        }
-        else
-        {
-            <EmptyState Title="No data available" Description="You do not have access to any administrative metrics.">
-                <Icon>
-                    <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                </Icon>
-                <ActionTemplate>
-                    <a href="/" class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
-                        Return Home
-                    </a>
-                </ActionTemplate>
-            </EmptyState>
-        }
+
+                @* ── Left Item 3: Clean 3-Metric Quiz Performance & Efficacy Card ── *@
+                @if (Dashboard.QuizPerformance != null)
+                {
+                    var quiz = Dashboard.QuizPerformance;
+                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-base font-extrabold text-slate-900">Quiz Efficacy & Assessment Performance</h3>
+                                <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Overall student test score analytics</p>
+                            </div>
+                            <span class="px-3 py-1.5 rounded-full text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100/80 inline-flex items-center shadow-xs">
+                                @quiz.TotalAttempts Attempts Logged
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-center flex flex-col justify-center">
+                                <span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block mb-1">Average Score</span>
+                                <span class="text-3xl font-black text-indigo-950">@quiz.AverageScore%</span>
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100/80 flex flex-col justify-between">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Pass Rate</span>
+                                    <span class="text-sm font-black text-emerald-900">@quiz.PassRatePercentage%</span>
+                                </div>
+                                <div class="w-full bg-emerald-200/60 rounded-full h-2.5 overflow-hidden mb-2">
+                                    <div class="bg-emerald-600 h-full rounded-full transition-all duration-500"
+                                         style="width: @(quiz.PassRatePercentage)%"></div>
+                                </div>
+                                <span class="text-xs font-semibold text-emerald-700">@quiz.PassedCount passed attempts</span>
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-amber-50/60 border border-amber-100/80 flex flex-col justify-between">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Fail Rate</span>
+                                    <span class="text-sm font-black text-amber-900">@quiz.FailRatePercentage%</span>
+                                </div>
+                                <div class="w-full bg-amber-200/60 rounded-full h-2.5 overflow-hidden mb-2">
+                                    <div class="bg-amber-500 h-full rounded-full transition-all duration-500"
+                                         style="width: @(quiz.FailRatePercentage)%"></div>
+                                </div>
+                                <span class="text-xs font-semibold text-amber-800">@quiz.FailedCount unpassed attempts</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+            </div>
+
+            @* ── PHASE 4: RIGHT COLUMN (~35% Width — col-span-4) ──────────────────── *@
+            <div class="lg:col-span-4 space-y-6">
+
+                @* ── Right Item 1: Course Completion Donut Gauge ─────────────────── *@
+                @if (Dashboard.CompletionStats != null)
+                {
+                    var stats = Dashboard.CompletionStats;
+                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="mb-4">
+                            <h3 class="text-base font-extrabold text-slate-900">Course Completion Gauge</h3>
+                            <p class="text-xs font-semibold text-slate-400 mt-0.5">Overall student progress ratio</p>
+                        </div>
+
+                        <div class="py-2 text-center">
+                            <div class="relative inline-flex items-center justify-center">
+                                <svg class="w-32 h-32 transform -rotate-90">
+                                    <circle cx="64" cy="64" r="52" stroke="#f1f5f9" stroke-width="10" fill="transparent" />
+                                    <circle cx="64" cy="64" r="52" stroke="#059669" stroke-width="10" fill="transparent"
+                                            stroke-dasharray="326.7"
+                                            stroke-dashoffset="@(326.7 - (326.7 * (stats.CompletionRatePercentage / 100)))"
+                                            stroke-linecap="round" class="transition-all duration-700 ease-out" />
+                                </svg>
+                                <div class="absolute flex flex-col items-center">
+                                    <span class="text-2xl font-black text-slate-900">@stats.CompletionRatePercentage%</span>
+                                    <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Completed</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 mt-4">
+                            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                                    <span class="font-bold text-slate-700">Completed</span>
+                                </div>
+                                <span class="font-extrabold text-slate-900">@stats.CompletedCount</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                    <span class="font-bold text-slate-700">In Progress</span>
+                                </div>
+                                <span class="font-extrabold text-slate-900">@stats.InProgressCount</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                                    <span class="font-bold text-slate-700">Not Completed</span>
+                                </div>
+                                <span class="font-extrabold text-slate-900">@stats.NotCompletedCount</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* ── Right Item 2: Quick Actions (Compact Button Grid) ───────────── *@
+                @if (Dashboard.QuickActions.Any())
+                {
+                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                        <h3 class="text-base font-extrabold text-slate-900 mb-4">Quick Management Actions</h3>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            @foreach (var action in Dashboard.QuickActions)
+                            {
+                                <a href="@action.Route" class="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200 text-slate-700 hover:text-indigo-700 transition-all text-xs font-extrabold group">
+                                    <div class="p-1.5 rounded-lg bg-white text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-xs">
+                                        @if (action.Icon == "plus")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        }
+                                        else if (action.Icon == "users")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                            </svg>
+                                        }
+                                        else if (action.Icon == "shield-check")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                            </svg>
+                                        }
+                                        else
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        }
+                                    </div>
+                                    <span class="truncate">@action.Title</span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* ── Right Item 3: Recent Activity Stream (Icon-Badge Version) ────── *@
+                <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900">Recent Activity</h3>
+                            <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Real-time system event log</p>
+                        </div>
+                        <a href="/admin/audit-logs" class="px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100/80 transition-all inline-flex items-center shadow-xs">
+                            Logs →
+                        </a>
+                    </div>
+
+                    @if (Dashboard.RecentActivities != null && Dashboard.RecentActivities.Any())
+                    {
+                        <div class="space-y-3.5">
+                            @foreach (var activity in Dashboard.RecentActivities)
+                            {
+                                <div class="flex items-start gap-3 text-xs">
+                                    @* Icon Badge *@
+                                    <div class="mt-0.5 p-2 rounded-xl flex-shrink-0 @(activity.IconType == "create" ? "bg-emerald-50 text-emerald-600" : activity.IconType == "role" ? "bg-indigo-50 text-indigo-600" : activity.IconType == "delete" ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-600")">
+                                        @if (activity.IconType == "create")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        }
+                                        else if (activity.IconType == "role")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                            </svg>
+                                        }
+                                        else if (activity.IconType == "delete")
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        }
+                                        else
+                                        {
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        }
+                                    </div>
+
+                                    @* Text Content *@
+                                    <div class="flex-grow min-w-0">
+                                        <p class="font-bold text-slate-800 leading-snug break-words">@activity.ActionText</p>
+                                        <span class="text-[10px] font-semibold text-slate-400 mt-0.5 block">@activity.RelativeTime</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="py-8 text-center text-xs font-medium text-slate-400">
+                            No recent activity logged.
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+        </div>
     }
 </div>
 
@@ -148,14 +704,103 @@
     private bool IsLoading = true;
     private bool HasError = false;
     private string ErrorMessage = string.Empty;
+    private string CurrentRange = "monthly";
+    private int? HoveredTrendIndex = null;
+
+    // True when the server groups trend points into calendar-month buckets
+    // (only for custom ranges longer than 60 days - mirrors AdminDashboardService).
+    private bool IsMonthGroupedTrend =>
+        CurrentRange == "custom" && CustomStartDate.HasValue && CustomEndDate.HasValue &&
+        (CustomEndDate.Value.Date - CustomStartDate.Value.Date).TotalDays > 60;
+
+    // Custom date range state
+    private DateTime? CustomStartDate = DateTime.Now.AddDays(-30);
+    private DateTime? CustomEndDate = DateTime.Now;
+    private string CustomDateError = string.Empty;
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboard();
+    }
+
+    private async Task RefreshDashboard()
+    {
+        await LoadDashboard();
+    }
+
+    private async Task ChangeTimeframe(string newRange)
+    {
+        if (CurrentRange == newRange && newRange != "custom") return;
+        CurrentRange = newRange;
+        CustomDateError = string.Empty;
+        await LoadDashboard();
+    }
+
+    private void ActivateCustomRange()
+    {
+        if (CurrentRange == "custom") return;
+        CurrentRange = "custom";
+        CustomDateError = string.Empty;
+        // Don't auto-load — wait for Apply click
+    }
+
+    private async Task ApplyCustomRange()
+    {
+        CustomDateError = string.Empty;
+
+        if (!CustomStartDate.HasValue || !CustomEndDate.HasValue)
+        {
+            CustomDateError = "Please select both a Start Date and End Date.";
+            return;
+        }
+        if (CustomEndDate.Value.Date < CustomStartDate.Value.Date)
+        {
+            CustomDateError = "End Date cannot be earlier than Start Date.";
+            return;
+        }
+        if (CustomStartDate.Value.Date > DateTime.Now.Date)
+        {
+            CustomDateError = "Start Date cannot be in the future.";
+            return;
+        }
+        if ((CustomEndDate.Value.Date - CustomStartDate.Value.Date).TotalDays > 365)
+        {
+            CustomDateError = "Custom range cannot exceed 1 year.";
+            return;
+        }
+
+        await LoadDashboard();
+    }
+
+    private string GetActiveRangeLabel()
+    {
+        return CurrentRange switch
+        {
+            "daily" => $"Showing: Today ({DateTime.Now:dd-MM-yyyy})",
+            "weekly" => $"Showing: Last 7 Days ({DateTime.Now.AddDays(-6):dd-MM-yyyy} – {DateTime.Now:dd-MM-yyyy})",
+            "monthly" => $"Showing: Last 30 Days ({DateTime.Now.AddDays(-29):dd-MM-yyyy} – {DateTime.Now:dd-MM-yyyy})",
+            "custom" when CustomStartDate.HasValue && CustomEndDate.HasValue =>
+                $"Showing: {CustomStartDate.Value:dd-MM-yyyy} – {CustomEndDate.Value:dd-MM-yyyy}",
+            _ => "Showing: Last 30 Days"
+        };
+    }
+
+    private async Task LoadDashboard()
     {
         IsLoading = true;
         HasError = false;
 
-        var result = await DashboardClient.GetDashboardAsync();
-        
+        (bool Success, AdminDashboardResponse? Data, string? Error) result;
+
+        if (CurrentRange == "custom" && CustomStartDate.HasValue && CustomEndDate.HasValue)
+        {
+            result = await DashboardClient.GetDashboardAsync("custom", CustomStartDate.Value, CustomEndDate.Value);
+        }
+        else
+        {
+            result = await DashboardClient.GetDashboardAsync(CurrentRange);
+        }
+
         if (result.Success)
         {
             Dashboard = result.Data;
@@ -167,5 +812,45 @@
         }
 
         IsLoading = false;
+    }
+
+    // SVG Chart Geometry Helpers
+    private (double X, double Y) GetCoordinate(int index, int count, int totalPoints, int maxCount)
+    {
+        double xStep = totalPoints > 1 ? 500.0 / (totalPoints - 1) : 250;
+        double x = Math.Round(index * xStep, 1);
+        double y = Math.Round(140.0 - ((double)count / Math.Max(1, maxCount)) * 120.0, 1);
+        return (x, y);
+    }
+
+    private string GetSvgSplinePoints(List<EnrollmentTrendItemDto> trends, int maxCount)
+    {
+        if (trends == null || !trends.Any()) return "M 0,140 L 500,140";
+        if (trends.Count == 1)
+        {
+            var (x, y) = GetCoordinate(0, trends[0].Count, 1, maxCount);
+            return $"M 0,{y} L 500,{y}";
+        }
+
+        var coords = trends.Select((t, i) => GetCoordinate(i, t.Count, trends.Count, maxCount)).ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"M {coords[0].X},{coords[0].Y}");
+
+        for (int i = 0; i < coords.Count - 1; i++)
+        {
+            var p0 = coords[i];
+            var p1 = coords[i + 1];
+            double dx = (p1.X - p0.X) / 2.0;
+            sb.Append($" C {Math.Round(p0.X + dx, 1)},{p0.Y} {Math.Round(p1.X - dx, 1)},{p1.Y} {p1.X},{p1.Y}");
+        }
+
+        return sb.ToString();
+    }
+
+    private string GetSvgSplineAreaPath(List<EnrollmentTrendItemDto> trends, int maxCount)
+    {
+        if (trends == null || !trends.Any()) return "M 0,140 L 500,140 Z";
+        var spline = GetSvgSplinePoints(trends, maxCount);
+        return $"{spline} L 500,140 L 0,140 Z";
     }
 }

@@ -1,3 +1,4 @@
+﻿using ELearningManagementSystem.Shared.Constants;
 using ELearningManagementSystem.Application.Common;
 using ELearningManagementSystem.Application.Features.Authentication.DTOs;
 using ELearningManagementSystem.Application.Features.Authentication.Interfaces;
@@ -17,6 +18,7 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthService> _logger;
     private readonly IAuditLogService _auditLogService;
+    private readonly IEmailSender _emailSender;
 
     private const string StudentRoleName = "Student";
 
@@ -25,13 +27,15 @@ public class AuthService : IAuthService
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ILogger<AuthService> logger,
-        IAuditLogService auditLogService)
+        IAuditLogService auditLogService,
+        IEmailSender emailSender)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
         _auditLogService = auditLogService;
+        _emailSender = emailSender;
     }
 
     public async Task<Result<RegisterResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
@@ -40,7 +44,7 @@ public class AuthService : IAuthService
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-            // Check for duplicate email (including soft-deleted — we do not allow re-use of deleted emails)
+            // Check for duplicate email (including soft-deleted â€” we do not allow re-use of deleted emails)
             var existingUser = await _context.Users
                 .AnyAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
 
@@ -50,7 +54,7 @@ public class AuthService : IAuthService
                 return Result.Failure<RegisterResponse>("EmailAlreadyExists: An account with this email already exists.");
             }
 
-            // Find the Student role server-side — never trust client input
+            // Find the Student role server-side â€” never trust client input
             var studentRole = await _context.Roles
                 .FirstOrDefaultAsync(r => r.RoleName == StudentRoleName, cancellationToken);
 
@@ -120,10 +124,10 @@ public class AuthService : IAuthService
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
 
-            // Generic error — do not reveal whether email exists or password is wrong
-            if (user is null || user.DeleteFlag)
+            // Generic error â€” do not reveal whether email exists or password is wrong
+            if (user is null)
             {
-                _logger.LogWarning("Login failed: user not found or deleted. Email={Email}", normalizedEmail);
+                _logger.LogWarning("Login failed: user not found. Email={Email}", normalizedEmail);
                 return Result.Failure<AuthResponse>("InvalidCredentials: Invalid email or password.");
             }
 
@@ -131,6 +135,14 @@ public class AuthService : IAuthService
             {
                 _logger.LogWarning("Login failed: incorrect password. UserId={UserId}", user.UserId);
                 return Result.Failure<AuthResponse>("InvalidCredentials: Invalid email or password.");
+            }
+
+            // Deactivation is checked after password verification so the account's
+            // status is only revealed to someone holding valid credentials.
+            if (user.DeleteFlag)
+            {
+                _logger.LogWarning("Login failed: account deactivated. UserId={UserId}, Email={Email}", user.UserId, user.Email);
+                return Result.Failure<AuthResponse>("AccountDeactivated: Your account has been deactivated. Please contact support.");
             }
 
             // Load all user roles
@@ -147,8 +159,8 @@ public class AuthService : IAuthService
 
             // Determine primary role name for DTO (highest priority)
             string roleName = StudentRoleName;
-            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
-            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            if (userRoles.Contains(AppConstants.SystemAdministratorRole)) roleName = AppConstants.SystemAdministratorRole;
+            else if (userRoles.Contains(AppConstants.AdministratorRole)) roleName = AppConstants.AdministratorRole;
             else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
@@ -179,7 +191,7 @@ public class AuthService : IAuthService
                 accessToken,
                 expiresAt,
                 refreshTokenValue,
-                new AuthUserDto(user.UserId, user.FullName, user.Email, roleName, permissions)));
+                new AuthUserDto(user.UserId, user.FullName, user.Email, roleName, permissions, user.MustChangePassword)));
         }
         catch (Exception ex)
         {
@@ -244,8 +256,8 @@ public class AuthService : IAuthService
 
             // Determine primary role name for DTO (highest priority)
             string roleName = StudentRoleName;
-            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
-            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            if (userRoles.Contains(AppConstants.SystemAdministratorRole)) roleName = AppConstants.SystemAdministratorRole;
+            else if (userRoles.Contains(AppConstants.AdministratorRole)) roleName = AppConstants.AdministratorRole;
             else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
@@ -278,7 +290,7 @@ public class AuthService : IAuthService
                 newAccessToken,
                 expiresAt,
                 newRefreshTokenValue,
-                new AuthUserDto(user.UserId, user.FullName, user.Email, roleName, permissions)));
+                new AuthUserDto(user.UserId, user.FullName, user.Email, roleName, permissions, user.MustChangePassword)));
         }
         catch (Exception ex)
         {
@@ -314,8 +326,8 @@ public class AuthService : IAuthService
 
             // Determine primary role name for DTO (highest priority)
             string roleName = StudentRoleName;
-            if (userRoles.Contains("SuperAdmin")) roleName = "SuperAdmin";
-            else if (userRoles.Contains("Admin")) roleName = "Admin";
+            if (userRoles.Contains(AppConstants.SystemAdministratorRole)) roleName = AppConstants.SystemAdministratorRole;
+            else if (userRoles.Contains(AppConstants.AdministratorRole)) roleName = AppConstants.AdministratorRole;
             else if (userRoles.Any()) roleName = userRoles.First();
 
             // Load dynamic permissions
@@ -326,7 +338,8 @@ public class AuthService : IAuthService
                 user.FullName,
                 user.Email,
                 roleName,
-                permissions));
+                permissions,
+                user.MustChangePassword));
         }
         catch (Exception ex)
         {
@@ -340,7 +353,7 @@ public class AuthService : IAuthService
         try
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
-                return Result.Success(); // Idempotent — nothing to revoke
+                return Result.Success(); // Idempotent â€” nothing to revoke
 
             var tokenHash = ComputeTokenHash(refreshToken);
 
@@ -363,7 +376,177 @@ public class AuthService : IAuthService
         }
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+    public async Task<Result> ForgotPasswordAsync(string email, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail && !u.DeleteFlag, cancellationToken);
+
+            // Always return a generic success message â€” do NOT reveal whether the email exists.
+            if (user is null)
+            {
+                _logger.LogInformation("Password reset requested for unknown email. Email={Email}", normalizedEmail);
+                return Result.Success();
+            }
+
+            // Invalidate any previously issued, unused OTPs for this user so only the latest one works.
+            var outstanding = await _context.PasswordResetTokens
+                .Where(t => t.UserId == user.UserId && !t.UsedAt.HasValue)
+                .ToListAsync(cancellationToken);
+
+            foreach (var token in outstanding)
+            {
+                token.UsedAt = DateTime.UtcNow;
+            }
+
+            var otp = GenerateOtp();
+            var tokenHash = ComputeTokenHash(otp);
+
+            var resetToken = new PasswordResetToken
+            {
+                UserId = user.UserId,
+                TokenHash = tokenHash,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(1),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.PasswordResetTokens.Add(resetToken);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var body = $"""
+                <html>
+                <body style="font-family:Arial,sans-serif;color:#1e293b;line-height:1.6;">
+                    <h2 style="color:#4f46e5;">Your one-time password</h2>
+                    <p>Hi {user.FullName},</p>
+                    <p>Use the following code to reset your password. It is valid for <strong>1 minute</strong>:</p>
+                    <p style="margin:24px 0;text-align:center;">
+                        <span style="display:inline-block;background:#eef2ff;color:#4f46e5;font-size:28px;font-weight:700;letter-spacing:6px;padding:12px 24px;border-radius:10px;">{otp}</span>
+                    </p>
+                    <p>If you didn't request this, you can safely ignore this email.</p>
+                </body>
+                </html>
+                """;
+
+            await _emailSender.SendAsync(user.Email, "Your password reset code", body, cancellationToken);
+
+            _logger.LogInformation("Password reset OTP sent. UserId={UserId}, Email={Email}", user.UserId, user.Email);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during forgot-password. Email={Email}", email);
+            throw;
+        }
+    }
+
+    public async Task<Result> VerifyOtpAsync(string otp, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(otp))
+                return Result.Failure("InvalidOtp: The OTP is invalid.");
+
+            var tokenHash = ComputeTokenHash(otp.Trim());
+
+            var resetToken = await _context.PasswordResetTokens
+                .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && !t.UsedAt.HasValue, cancellationToken);
+
+            if (resetToken is null)
+            {
+                _logger.LogWarning("OTP verification failed: OTP not found.");
+                return Result.Failure("InvalidOtp: The OTP is invalid or has already been used.");
+            }
+
+            if (resetToken.IsExpired)
+            {
+                _logger.LogWarning("OTP verification failed: OTP expired.");
+                return Result.Failure("ExpiredOtp: This OTP has expired. Please request a new one.");
+            }
+
+            // Record successful verification server-side. This is what unlocks the
+            // reset step; the 1-minute lifetime applies only to entering the OTP.
+            resetToken.VerifiedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("OTP verified successfully. UserId={UserId}", resetToken.UserId);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during OTP verification.");
+            throw;
+        }
+    }
+
+    public async Task<Result> ResetPasswordAsync(string otp, string newPassword, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(otp))
+                return Result.Failure("InvalidOtp: The OTP is invalid.");
+
+            var tokenHash = ComputeTokenHash(otp.Trim());
+
+            var resetToken = await _context.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && !t.UsedAt.HasValue, cancellationToken);
+
+            if (resetToken is null)
+            {
+                _logger.LogWarning("Password reset failed: OTP not found.");
+                return Result.Failure("InvalidOtp: The OTP is invalid or has already been used.");
+            }
+
+            // Only a successfully verified OTP may reset the password. The 1-minute
+            // lifetime applies to the OTP entry step; once verified, the user may take
+            // as long as needed to enter a new password.
+            if (!resetToken.VerifiedAt.HasValue)
+            {
+                _logger.LogWarning("Password reset failed: OTP was never verified. UserId={UserId}", resetToken.UserId);
+                return Result.Failure("OtpNotVerified: Verify your one-time password before resetting your password.");
+            }
+
+            var user = resetToken.User;
+
+            if (user.DeleteFlag)
+            {
+                _logger.LogWarning("Password reset failed: account deleted. UserId={UserId}", user.UserId);
+                return Result.Failure("AccountNotFound: This account is no longer available.");
+            }
+
+            user.PasswordHash = _passwordHasher.Hash(newPassword);
+            user.MustChangePassword = false;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            resetToken.UsedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
+            {
+                UserId = user.UserId,
+                Action = "ResetPassword",
+                TableName = "Users",
+                RecordId = user.UserId
+            }, cancellationToken);
+
+            _logger.LogInformation("Password reset successful. UserId={UserId}, Email={Email}", user.UserId, user.Email);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during password reset.");
+            throw;
+        }
+    }
+
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<List<string>> GetUserPermissionsAsync(int userId, CancellationToken cancellationToken)
     {
@@ -374,6 +557,15 @@ public class AuthService : IAuthService
             .Select(rp => rp.Permission.PermissionCode)
             .Distinct()
             .ToListAsync(cancellationToken);
+    }
+
+    private static string GenerateOtp()
+    {
+        var bytes = new byte[3];
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(bytes);
+        var code = ((bytes[0] << 16) | (bytes[1] << 8) | bytes[2]) % 1_000_000;
+        return code.ToString("D6");
     }
 
     private static string GenerateSecureToken()

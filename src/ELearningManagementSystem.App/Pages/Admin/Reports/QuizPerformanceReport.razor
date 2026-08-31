@@ -1,0 +1,412 @@
+@page "/admin/reports/quiz-performance"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:QuizPerformance.Read")]
+@implements IDisposable
+@inject ReportsApiClient ReportsClient
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<PageTitle>Quiz Performance & Efficacy Report</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+    
+    @* ── Header Section ────────────────────────────────────────────────── *@
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                <span>Reports</span>
+                <span>/</span>
+                <span class="text-indigo-600 font-extrabold">Quiz Performance</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Quiz Performance & Efficacy Report</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">
+                Student quiz attempt metrics, pass/fail rates, average scores, and quiz health evaluations.
+            </p>
+        </div>
+
+        @* Export CSV Action Button *@
+        <button type="button" @onclick="ExportCsv" disabled="@(IsLoading || IsExporting)"
+                class="inline-flex items-center justify-center px-5 py-2.5 rounded-full text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer">
+            @if (IsExporting)
+            {
+                <svg class="w-4 h-4 mr-2 animate-spin text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Exporting CSV...</span>
+            }
+            else
+            {
+                <svg class="w-4 h-4 mr-2 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Export CSV Report</span>
+            }
+        </button>
+    </div>
+
+    @* ── Global Filters & Controls Bar ──────────────────────────────────── *@
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 mb-6 space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            @* Date Range Presets *@
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex rounded-full bg-slate-100 p-1">
+                    <button type="button" @onclick='() => SetDatePreset("daily")' disabled="@IsLoading"
+                            class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed @(DatePreset == "daily" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                        Daily
+                    </button>
+                    <button type="button" @onclick='() => SetDatePreset("weekly")' disabled="@IsLoading"
+                            class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed @(DatePreset == "weekly" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                        Weekly
+                    </button>
+                    <button type="button" @onclick='() => SetDatePreset("monthly")' disabled="@IsLoading"
+                            class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed @(DatePreset == "monthly" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                        Monthly
+                    </button>
+                    <button type="button" @onclick='() => SetDatePreset("custom")'
+                            class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer @(DatePreset == "custom" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800")">
+                        Custom
+                    </button>
+                </div>
+
+                @if (DatePreset == "custom")
+                {
+                    <div class="flex items-center gap-2">
+                        <DateInput @bind-Date="StartDate" Size="DateInputSize.Sm" AriaLabel="Start Date" />
+                        <span class="text-xs text-slate-400 font-bold">to</span>
+                        <DateInput @bind-Date="EndDate" Size="DateInputSize.Sm" AriaLabel="End Date" />
+                        <span class="text-[10px] text-slate-400 font-bold">(dd-mm-yyyy)</span>
+                        <button type="button" @onclick="ApplyCustomDate" disabled="@IsLoading"
+                                class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-extrabold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            Apply
+                        </button>
+                    </div>
+                }
+            </div>
+
+            @* Search Box *@
+            <div class="relative w-full lg:w-64">
+                <input type="text" value="@SearchTerm" @oninput="OnSearchInput" placeholder="Search quiz or course..."
+                       class="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all" />
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                @if (!string.IsNullOrEmpty(SearchTerm))
+                {
+                    <button type="button" @onclick="ClearSearch" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(DateError))
+        {
+            <div class="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-rose-600 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                @DateError
+            </div>
+        }
+    </div>
+
+    @* ── Error Message Banner ────────────────────────────────────────────── *@
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-6 rounded-2xl bg-rose-50 p-4 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>@ErrorMessage</span>
+            </div>
+            <button type="button" @onclick='() => ErrorMessage = null' class="text-rose-400 hover:text-rose-600">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    }
+
+    @* ── Quiz Performance Table ────────────────────────────────────────── *@
+    @if (IsLoading)
+    {
+        <div class="space-y-3">
+            <SkeletonCard />
+            <SkeletonCard />
+        </div>
+    }
+    else if (ReportData == null || !ReportData.Items.Any())
+    {
+        <EmptyState Title="No Quiz Data" Description="No quiz attempts match the selected date range and search criteria.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </Icon>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden mb-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50 text-[11px] font-extrabold uppercase text-slate-500 tracking-wider">
+                        <tr>
+                            <th scope="col" class="px-4 py-3.5 text-left">NO.</th>
+                            <th scope="col" class="px-4 py-3.5 text-left cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("QuizTitle")'>
+                                Quiz Title @GetSortIcon("QuizTitle")
+                            </th>
+                            <th scope="col" class="px-4 py-3.5 text-left cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("CourseTitle")'>
+                                Course Title @GetSortIcon("CourseTitle")
+                            </th>
+                            <th scope="col" class="px-4 py-3.5 text-center">Passing Score</th>
+                            <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("TotalAttempts")'>
+                                Total Attempts @GetSortIcon("TotalAttempts")
+                            </th>
+                            <th scope="col" class="px-4 py-3.5 text-center">Passed / Failed</th>
+                            <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("AverageScore")'>
+                                Average Score % @GetSortIcon("AverageScore")
+                            </th>
+                            <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("PassRate")'>
+                                Pass Rate % @GetSortIcon("PassRate")
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                        @foreach (var row in ReportData.Items.Select((item, idx) => (item, idx)))
+                        {
+                            var item = row.item;
+                            var rowNum = (ReportData.Page - 1) * ReportData.PageSize + row.idx + 1;
+                            <tr class="hover:bg-slate-50/80 transition-colors">
+                                <td class="px-4 py-3 text-slate-400 font-mono">@rowNum</td>
+                                <td class="px-4 py-3 font-extrabold text-slate-900">@item.QuizTitle</td>
+                                <td class="px-4 py-3 text-slate-600 font-semibold">@item.CourseTitle</td>
+                                <td class="px-4 py-3 text-center font-mono font-bold text-slate-600">@item.PassingScore%</td>
+                                <td class="px-4 py-3 text-center font-extrabold text-indigo-700">@item.TotalAttempts</td>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <span class="font-bold text-emerald-600">@item.PassedAttempts</span>
+                                    <span class="text-slate-300 mx-1">/</span>
+                                    <span class="font-bold text-rose-500">@item.FailedAttempts</span>
+                                </td>
+                                <td class="px-4 py-3 text-center font-black text-slate-800">@item.AverageScore%</td>
+                                <td class="px-4 py-3 text-center">
+                                    @if (item.PassRatePercentage >= 70)
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            @item.PassRatePercentage% (Healthy)
+                                        </span>
+                                    }
+                                    else if (item.PassRatePercentage >= 40)
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200">
+                                            @item.PassRatePercentage% (Moderate)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                            @item.PassRatePercentage% (Needs Review)
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <Pagination CurrentPage="CurrentPage" TotalPages="ReportData.TotalPages" TotalCount="ReportData.TotalCount" PageSize="ReportData.PageSize"
+                    ItemLabel="quizzes" PageChanged="ChangePage" PageSizeChanged="OnPageSizeChangedAsync" />
+    }
+</div>
+
+@code {
+    private bool IsLoading = true;
+    private bool IsExporting = false;
+    private string? ErrorMessage;
+    private string DateError = string.Empty;
+
+    // Filters
+    private string DatePreset = "daily";
+    private DateTime? StartDate = DateTime.Now.Date;
+    private DateTime? EndDate = DateTime.Now.Date;
+    private string SearchTerm = string.Empty;
+
+    // Pagination & Sorting
+    private int CurrentPage = 1;
+    private int PageSize = 10;
+    private string SortBy = "TotalAttempts";
+    private bool SortDescending = true;
+
+    private PagedResult<ClientQuizPerformanceReportDto>? ReportData;
+    private System.Timers.Timer? _debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReport();
+    }
+
+    private async Task SetDatePreset(string preset)
+    {
+        DatePreset = preset;
+        DateError = string.Empty;
+        var now = DateTime.Now;
+
+        if (preset == "daily")
+        {
+            StartDate = now.Date;
+            EndDate = now.Date;
+        }
+        else if (preset == "weekly")
+        {
+            StartDate = now.AddDays(-6).Date;
+            EndDate = now.Date;
+        }
+        else if (preset == "monthly")
+        {
+            StartDate = now.AddDays(-29).Date;
+            EndDate = now.Date;
+        }
+
+        if (preset != "custom")
+        {
+            CurrentPage = 1;
+            await LoadReport();
+        }
+    }
+
+    private async Task ApplyCustomDate()
+    {
+        DateError = string.Empty;
+        if (StartDate.HasValue && EndDate.HasValue && EndDate.Value.Date < StartDate.Value.Date)
+        {
+            DateError = "End Date cannot be earlier than Start Date.";
+            return;
+        }
+
+        CurrentPage = 1;
+        await LoadReport();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+        _debounceTimer?.Stop();
+        _debounceTimer = new System.Timers.Timer(400);
+        _debounceTimer.Elapsed += async (src, ev) =>
+        {
+            _debounceTimer.Stop();
+            CurrentPage = 1;
+            await InvokeAsync(LoadReport);
+        };
+        _debounceTimer.Start();
+    }
+
+    private async Task ClearSearch()
+    {
+        SearchTerm = string.Empty;
+        CurrentPage = 1;
+        await LoadReport();
+    }
+
+    private async Task OnPageSizeChangedAsync(int pageSize)
+    {
+        if (pageSize == PageSize) return;
+
+        PageSize = pageSize;
+        CurrentPage = 1;
+        await LoadReport();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        CurrentPage = page;
+        await LoadReport();
+    }
+
+    private async Task ToggleSort(string column)
+    {
+        if (SortBy.Equals(column, StringComparison.OrdinalIgnoreCase))
+        {
+            SortDescending = !SortDescending;
+        }
+        else
+        {
+            SortBy = column;
+            SortDescending = true;
+        }
+        await LoadReport();
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (!SortBy.Equals(column, StringComparison.OrdinalIgnoreCase)) return "↕";
+        return SortDescending ? "↓" : "↑";
+    }
+
+    private async Task LoadReport()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        var res = await ReportsClient.GetQuizPerformanceReportAsync(
+            StartDate, EndDate, SearchTerm, CurrentPage, PageSize, SortBy, SortDescending);
+
+        if (res.Success)
+        {
+            ReportData = res.Data;
+        }
+        else
+        {
+            ErrorMessage = res.Error ?? "Failed to load quiz performance report.";
+        }
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ExportCsv()
+    {
+        IsExporting = true;
+        ErrorMessage = null;
+
+        try
+        {
+            var res = await ReportsClient.DownloadQuizPerformanceReportCsvAsync(
+                StartDate, EndDate, SearchTerm, SortBy, SortDescending);
+
+            if (res.Success && res.FileBytes != null)
+            {
+                var base64 = Convert.ToBase64String(res.FileBytes);
+                var fileName = res.FileName ?? "quiz_performance_report.csv";
+                await JS.InvokeVoidAsync("eval", $"const a = document.createElement('a'); a.href = 'data:text/csv;base64,{base64}'; a.download = '{fileName}'; document.body.appendChild(a); a.click(); document.body.removeChild(a);");
+            }
+            else
+            {
+                ErrorMessage = res.Error ?? "Failed to export quiz performance report CSV.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "CSV Export failed: " + ex.Message;
+        }
+
+        IsExporting = false;
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+}

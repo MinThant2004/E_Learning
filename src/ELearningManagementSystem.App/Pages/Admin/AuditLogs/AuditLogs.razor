@@ -10,9 +10,13 @@
 
 <PageTitle>Audit Logs</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
-    <PageHeader Title="Audit Logs" Description="Review administrative history, database actions, and privileged changes.">
-    </PageHeader>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8 animate-in fade-in duration-300">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Audit Logs</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">Review administrative history, database actions, and privileged changes.</p>
+        </div>
+    </div>
 
     @if (ErrorMessage != null)
     {
@@ -45,7 +49,7 @@
             <div class="flex flex-col">
                 <label for="searchTerm" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Search Text</label>
                 <div class="relative">
-                    <input type="text" id="searchTerm" @bind-value="SearchTerm" @bind-value:event="oninput" @onkeyup="HandleKeyPress" placeholder="Search actor, action, table..." class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors" />
+                    <input type="text" id="searchTerm" @bind-value="SearchTerm" @bind-value:event="oninput" @onkeyup="HandleKeyPress" placeholder="Search" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors" />
                     @if (!string.IsNullOrEmpty(SearchTerm))
                     {
                         <button @onclick="ClearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
@@ -86,22 +90,24 @@
 
             <!-- Start Date -->
             <div class="flex flex-col">
-                <label for="startDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Start Date</label>
-                <input type="date" id="startDate" @bind="StartDate" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white" />
+                <label for="startDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Start Date <span class="text-[10px] font-medium normal-case tracking-normal text-slate-400">(dd-mm-yyyy)</span></label>
+                <DateInput @bind-Date="StartDate" AriaLabel="Start Date" WrapperClass="w-full" />
             </div>
 
             <!-- End Date -->
             <div class="flex flex-col">
-                <label for="endDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">End Date</label>
-                <input type="date" id="endDate" @bind="EndDate" class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white" />
+                <label for="endDate" class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">End Date <span class="text-[10px] font-medium normal-case tracking-normal text-slate-400">(dd-mm-yyyy)</span></label>
+                <DateInput @bind-Date="EndDate" AriaLabel="End Date" WrapperClass="w-full" />
             </div>
         </div>
 
         <div class="mt-6 flex justify-end space-x-3">
-            <button @onclick="ResetFilters" type="button" class="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none">
+            <button @onclick="ResetFilters" type="button" disabled="@IsLoading"
+                    class="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
                 Reset
             </button>
-            <button @onclick="LoadAuditLogs" type="button" class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors focus:outline-none">
+            <button @onclick="LoadAuditLogs" type="button" disabled="@IsLoading"
+                    class="inline-flex justify-center rounded-full border border-transparent bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
                 Apply Filters
             </button>
         </div>
@@ -140,9 +146,7 @@
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Module</th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Record ID</th>
-                            <th scope="col" class="relative px-6 py-4">
-                                <span class="sr-only">Actions</span>
-                            </th>
+                            <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-slate-200">
@@ -150,7 +154,7 @@
                         {
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-medium">
-                                    @log.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                                    @log.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm:ss tt")
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                                     <div class="font-semibold text-slate-900">@log.UserFullName</div>
@@ -168,8 +172,12 @@
                                     @log.RecordId
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button @onclick="() => ShowDetail(log)" class="text-indigo-600 hover:text-indigo-900 font-semibold transition-colors">
-                                        Details
+                                    <button @onclick="() => ShowDetail(log)" type="button" title="View details" aria-label="View audit log details" class="inline-flex items-center justify-center p-1.5 rounded-lg text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <span class="sr-only">View details</span>
                                     </button>
                                 </td>
                             </tr>
@@ -177,122 +185,171 @@
                     </tbody>
                 </table>
             </div>
-
-            <!-- Pagination Bar -->
-            <div class="bg-white px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-                <div class="flex-1 flex justify-between sm:hidden">
-                    <button @onclick="PreviousPage" disabled="@(!CanGoPrevious)" class="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50">
-                        Previous
-                    </button>
-                    <button @onclick="NextPage" disabled="@(!CanGoNext)" class="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50">
-                        Next
-                    </button>
-                </div>
-                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-slate-700">
-                            Showing page <span class="font-semibold text-slate-900">@CurrentPage</span> of <span class="font-semibold text-slate-900">@PagedResult.TotalPages</span>
-                            (Total: <span class="font-semibold text-slate-900">@PagedResult.TotalCount</span> items)
-                        </p>
-                    </div>
-                    <div>
-                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                            <button @onclick="PreviousPage" disabled="@(!CanGoPrevious)" class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50">
-                                <span class="sr-only">Previous</span>
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            @for (int i = 1; i <= PagedResult.TotalPages; i++)
-                            {
-                                var pageNum = i;
-                                <button @onclick="() => GoToPage(pageNum)" class="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-semibold @(pageNum == CurrentPage ? "z-10 bg-indigo-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50")">
-                                    @pageNum
-                                </button>
-                            }
-                            <button @onclick="NextPage" disabled="@(!CanGoNext)" class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50">
-                                <span class="sr-only">Next</span>
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </nav>
-                    </div>
-                </div>
-            </div>
         }
     </div>
+
+    <Pagination CurrentPage="CurrentPage" TotalPages="@(PagedResult?.TotalPages ?? 0)" TotalCount="@(PagedResult?.TotalCount ?? 0)" PageSize="@(PagedResult?.PageSize ?? 10)"
+                ShowPageSize="false" ItemLabel="log entries" PageChanged="GoToPage" />
 </div>
 
-<!-- Modal Detail Drawer -->
+<!-- Audit Log Detail Modal (centered popup) -->
 @if (SelectedLog != null)
 {
-    <div class="relative z-50 animate-in fade-in duration-200" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-500/75 transition-opacity"></div>
-        <div class="fixed inset-0 overflow-hidden">
-            <div class="absolute inset-0 overflow-hidden">
-                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16">
-                    <div class="pointer-events-auto w-screen max-w-md animate-in slide-in-from-right duration-300">
-                        <div class="flex h-full flex-col overflow-y-scroll bg-white shadow-2xl border-l border-slate-200">
-                            <!-- Drawer Header -->
-                            <div class="bg-indigo-700 px-6 py-6 sm:px-8">
-                                <div class="flex items-start justify-between">
-                                    <h2 class="text-xl font-bold text-white" id="slide-over-title">Audit Log Details</h2>
-                                    <div class="ml-3 flex h-7 items-center">
-                                        <button @onclick="CloseDetail" type="button" class="rounded-md text-indigo-200 hover:text-white focus:outline-none">
-                                            <span class="sr-only">Close panel</span>
-                                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="mt-1">
-                                    <p class="text-sm text-indigo-100">Log ID: <span class="font-mono text-white font-bold">@SelectedLog.AuditLogId</span></p>
-                                </div>
-                            </div>
+    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="audit-detail-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @onclick="CloseDetail" aria-hidden="true"></div>
 
-                            <!-- Drawer Body -->
-                            <div class="relative flex-1 py-8 px-6 sm:px-8">
-                                <div class="space-y-6">
-                                    <div>
-                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Timestamp</h3>
-                                        <p class="mt-1 text-sm font-medium text-slate-900">@SelectedLog.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</p>
-                                    </div>
-
-                                    <div>
-                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Actor (UserId: @SelectedLog.UserId)</h3>
-                                        <p class="mt-1 text-sm font-bold text-slate-950">@SelectedLog.UserFullName</p>
-                                        <p class="text-xs text-slate-500">@SelectedLog.UserEmail</p>
-                                    </div>
-
-                                    <div>
-                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ActionPerformed</h3>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1 @GetActionBadgeClass(SelectedLog.Action)">
-                                            @SelectedLog.Action
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Module / Table</h3>
-                                        <p class="mt-1 text-sm font-medium text-slate-900 font-mono">@SelectedLog.TableName</p>
-                                    </div>
-
-                                    <div>
-                                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Record ID</h3>
-                                        <p class="mt-1 text-sm font-mono text-slate-900">@SelectedLog.RecordId</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Drawer Footer -->
-                            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-end">
-                                <button @onclick="CloseDetail" type="button" class="rounded-full border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
-                                    Close
-                                </button>
-                            </div>
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all w-full max-w-2xl my-8 border border-slate-200">
+                <!-- Modal Header -->
+                <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 bg-slate-50/80">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                            <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold leading-6 text-slate-900" id="audit-detail-title">Audit Log Details</h3>
+                            <p class="mt-0.5 text-xs text-slate-500">Log ID: <span class="font-mono font-semibold text-slate-700">@SelectedLog.AuditLogId</span></p>
                         </div>
                     </div>
+                    <button @onclick="CloseDetail" type="button" class="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" aria-label="Close details">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span class="sr-only">Close panel</span>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="max-h-[65vh] overflow-y-auto px-6 py-5 space-y-5">
+                    <!-- Activity Summary -->
+                    <div class="rounded-xl bg-indigo-50 border border-indigo-100 p-4 flex items-start gap-3">
+                        <svg class="h-5 w-5 mt-0.5 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-sm leading-relaxed text-indigo-900">
+                            <span class="font-semibold">@BuildActivitySummary(SelectedLog)</span>
+                        </p>
+                    </div>
+
+                    <!-- Grouped details: Actor Info | Target / Activity -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Actor Info -->
+                        <section class="card p-5" aria-labelledby="actor-info-title">
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4" id="actor-info-title">Actor Info</h4>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-sm font-bold">
+                                    @GetInitials(SelectedLog.UserFullName)
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-slate-900 truncate">@SelectedLog.UserFullName</p>
+                                    <p class="text-xs text-slate-500 truncate">@SelectedLog.UserEmail</p>
+                                </div>
+                            </div>
+                            <dl class="mt-4 space-y-2 text-sm">
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">User ID</dt>
+                                    <dd class="font-mono text-slate-900">@SelectedLog.UserId</dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Timestamp</dt>
+                                    <dd class="font-medium text-slate-900 text-right">@SelectedLog.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm:ss tt")</dd>
+                                </div>
+                            </dl>
+                        </section>
+
+                        <!-- Target / Activity Details -->
+                        <section class="card p-5" aria-labelledby="target-details-title">
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4" id="target-details-title">Target / Activity Details</h4>
+                            <dl class="space-y-3 text-sm">
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Action</dt>
+                                    <dd>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold @GetActionBadgeClass(SelectedLog.Action)">
+                                            @SelectedLog.Action
+                                        </span>
+                                    </dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Module</dt>
+                                    <dd class="font-medium text-slate-900">@GetFriendlyModuleName(SelectedLog.TableName)</dd>
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <dt class="text-slate-500 flex-shrink-0 pt-0.5">Target Record</dt>
+                                    <dd class="text-right">
+                                        @if (IsDetailLoading && string.IsNullOrWhiteSpace(SelectedLog.RecordName))
+                                        {
+                                            <span class="inline-block h-4 w-28 animate-pulse rounded bg-slate-200 align-middle"></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="block font-semibold text-slate-900 break-words">@(string.IsNullOrWhiteSpace(SelectedLog.RecordName) ? "Record no longer exists" : SelectedLog.RecordName)</span>
+                                            <span class="mt-0.5 block text-xs font-mono text-slate-500">(ID: @SelectedLog.RecordId)</span>
+                                        }
+                                    </dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Table</dt>
+                                    <dd class="font-mono text-xs text-slate-600">@SelectedLog.TableName</dd>
+                                </div>
+                            </dl>
+                        </section>
+                    </div>
+
+                    <!-- Before / After Comparison (Update actions) -->
+                    @if (SelectedLog.Action == "Update")
+                    {
+                        <section class="card overflow-hidden" aria-labelledby="changes-title">
+                            <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50/80">
+                                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider" id="changes-title">Field Changes (Before &rarr; After)</h4>
+                            </div>
+                            @if (IsDetailLoading)
+                            {
+                                <div class="flex justify-center py-8">
+                                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                </div>
+                            }
+                            else if (SelectedLog.Changes is { Count: > 0 })
+                            {
+                                <ul class="divide-y divide-slate-100">
+                                    @foreach (var change in SelectedLog.Changes)
+                                    {
+                                        <li class="px-5 py-4 grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-x-4 gap-y-2">
+                                            <span class="text-sm font-semibold text-slate-700 pt-1">@change.Field</span>
+                                            <div class="flex flex-col sm:flex-row sm:items-start gap-2 min-w-0">
+                                                <span class="flex-1 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700 break-words whitespace-pre-wrap min-h-[2rem] flex items-center">
+                                                    @(string.IsNullOrWhiteSpace(change.OldValue) ? "—" : change.OldValue)
+                                                </span>
+                                                <svg class="h-4 w-4 self-center text-slate-400 flex-shrink-0 rotate-90 sm:rotate-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                                </svg>
+                                                <span class="flex-1 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-xs text-emerald-700 break-words whitespace-pre-wrap min-h-[2rem] flex items-center">
+                                                    @(string.IsNullOrWhiteSpace(change.NewValue) ? "—" : change.NewValue)
+                                                </span>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="px-5 py-4 flex items-start gap-3">
+                                    <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.008v.008H12v-.008z" />
+                                    </svg>
+                                    <p class="text-sm text-amber-700">No field-level details were recorded for this entry.</p>
+                                </div>
+                            }
+                        </section>
+                    }
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end">
+                    <button @onclick="CloseDetail" type="button" class="rounded-full border border-slate-300 bg-white px-6 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -314,8 +371,9 @@
     private DateTime? StartDate { get; set; }
     private DateTime? EndDate { get; set; }
 
-    // Detail Panel
+    // Detail Modal
     private ClientAuditLogResponse? SelectedLog { get; set; }
+    private bool IsDetailLoading { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -382,9 +440,29 @@
         await LoadAuditLogs();
     }
 
-    private void ShowDetail(ClientAuditLogResponse log)
+    // Paint the modal instantly from row data, then enrich it (record name + field
+    // changes) with the detail endpoint once it responds.
+    private async Task ShowDetail(ClientAuditLogResponse log)
     {
         SelectedLog = log;
+        IsDetailLoading = true;
+
+        try
+        {
+            var detail = await AuditLogClient.GetAuditLogAsync(log.AuditLogId);
+            if (detail != null && SelectedLog?.AuditLogId == detail.AuditLogId)
+            {
+                SelectedLog = detail;
+            }
+        }
+        catch (Exception)
+        {
+            // Row data remains displayed; record name / changes simply stay unresolved.
+        }
+        finally
+        {
+            IsDetailLoading = false;
+        }
     }
 
     private void CloseDetail()
@@ -393,27 +471,6 @@
     }
 
     // Paging
-    private bool CanGoPrevious => CurrentPage > 1;
-    private bool CanGoNext => PagedResult != null && CurrentPage < PagedResult.TotalPages;
-
-    private async Task PreviousPage()
-    {
-        if (CanGoPrevious)
-        {
-            CurrentPage--;
-            await LoadAuditLogs();
-        }
-    }
-
-    private async Task NextPage()
-    {
-        if (CanGoNext)
-        {
-            CurrentPage++;
-            await LoadAuditLogs();
-        }
-    }
-
     private async Task GoToPage(int page)
     {
         if (page != CurrentPage && page >= 1 && (PagedResult == null || page <= PagedResult.TotalPages))
@@ -434,5 +491,65 @@
             "Restore" => "bg-indigo-50 text-indigo-700 border border-indigo-200",
             _ => "bg-slate-50 text-slate-700 border border-slate-200"
         };
+    }
+
+    private static string GetFriendlyModuleName(string tableName)
+    {
+        return tableName switch
+        {
+            "Categories" => "Category",
+            "Courses" => "Course",
+            "Lessons" => "Lesson",
+            "Quizzes" => "Quiz",
+            "Questions" => "Question",
+            "Users" => "User",
+            _ => tableName
+        };
+    }
+
+    private static string GetTableLabel(string tableName)
+    {
+        return tableName switch
+        {
+            "Categories" => "category",
+            "Courses" => "course",
+            "Lessons" => "lesson",
+            "Quizzes" => "quiz",
+            "Questions" => "question",
+            "Users" => "user",
+            _ => tableName.ToLowerInvariant()
+        };
+    }
+
+    private static string GetActionVerb(string action)
+    {
+        return action switch
+        {
+            "Create" => "created",
+            "Update" => "updated",
+            "Delete" => "deleted",
+            "Archive" => "archived",
+            "Restore" => "restored",
+            _ => action.ToLowerInvariant()
+        };
+    }
+
+    private static string BuildActivitySummary(ClientAuditLogResponse log)
+    {
+        var target = string.IsNullOrWhiteSpace(log.RecordName)
+            ? $"ID: {log.RecordId}"
+            : $"{log.RecordName} (ID: {log.RecordId})";
+
+        return $"{log.UserFullName} {GetActionVerb(log.Action)} the {GetTableLabel(log.TableName)} \u201C{target}\u201D on {log.CreatedAt.ToLocalTime():dd-MM-yyyy 'at' hh:mm tt}.";
+    }
+
+    private static string GetInitials(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            return "?";
+
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var initials = string.Concat(parts.Take(2).Select(p => char.ToUpperInvariant(p[0])));
+        return string.IsNullOrEmpty(initials) ? "?" : initials;
     }
 }

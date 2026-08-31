@@ -18,4 +18,5 @@ public partial class Course
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
     public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     public virtual ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
+    public virtual ICollection<CourseExam> CourseExams { get; set; } = new List<CourseExam>();
 }

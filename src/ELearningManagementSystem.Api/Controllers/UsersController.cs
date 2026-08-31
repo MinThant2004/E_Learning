@@ -1,9 +1,11 @@
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ELearningManagementSystem.Application.Features.Users.DTOs;
 using ELearningManagementSystem.Application.Features.Users.Services;
+using FluentValidation;
 
 namespace ELearningManagementSystem.Api.Controllers;
 
@@ -13,10 +15,31 @@ namespace ELearningManagementSystem.Api.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IValidator<CreateUserRequest> _createUserValidator;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, IValidator<CreateUserRequest> createUserValidator)
     {
         _userService = userService;
+        _createUserValidator = createUserValidator;
+    }
+
+    [HttpPost]
+    [Authorize(Policy = "Permission:User.Update")]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    {
+        var validation = await _createUserValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(new { Errors = validation.Errors.Select(e => e.ErrorMessage) });
+
+        var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(currentUserIdClaim, out int currentUserId))
+            return Unauthorized();
+
+        var result = await _userService.CreateUserAsync(request, currentUserId);
+        if (result.IsSuccess)
+            return CreatedAtAction(nameof(GetUserById), new { id = result.Value }, new { userId = result.Value });
+
+        return BadRequest(new { error = result.Error });
     }
 
     [HttpGet]

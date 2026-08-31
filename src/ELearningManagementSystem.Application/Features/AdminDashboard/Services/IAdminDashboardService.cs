@@ -6,6 +6,6 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
 {
     public interface IAdminDashboardService
     {
-        Task<Result<AdminDashboardResponse>> GetDashboardAsync();
+        Task<Result<AdminDashboardResponse>> GetDashboardAsync(string range = "monthly", DateTime? customStartDate = null, DateTime? customEndDate = null);
     }
 }

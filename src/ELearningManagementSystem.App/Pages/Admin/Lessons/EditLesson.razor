@@ -1,0 +1,215 @@
+@page "/admin/courses/{CourseId:int}/lessons/{LessonId:int}/edit"
+
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Lesson.Update")]
+@inject LessonApiClient LessonClient
+@inject CourseApiClient CourseClient
+@inject NavigationManager NavManager
+
+<PageTitle>Edit Lesson</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+
+    <button @onclick="GoBack" class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
+        Back to Lessons
+    </button>
+
+    <div class="mb-4">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Edit Lesson</h1>
+        <p class="text-sm text-slate-500 mt-1">Update the lesson details for "@CourseTitle".</p>
+    </div>
+
+    @if (ErrorMessage != null)
+    {
+        <div class="mb-8 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Error</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>@ErrorMessage</p>
+                    </div>
+                </div>
+                <div class="ml-auto pl-3">
+                    <div class="-mx-1.5 -my-1.5">
+                        <button @onclick="() => ErrorMessage = null" type="button" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50">
+                            <span class="sr-only">Dismiss</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (IsPageLoading)
+    {
+        <SkeletonCard />
+    }
+    else if (HasLoadError)
+    {
+        <EmptyState Title="Lesson Unavailable" Description="Could not load the lesson details. It may have been archived or removed.">
+            <Icon>
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </Icon>
+            <ActionTemplate>
+                <button @onclick="GoBack" class="inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
+                    Return to Lessons
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+            <div class="max-w-5xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-6 sm:p-8 space-y-6">
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-4">
+                        <label for="title" class="block text-sm font-semibold text-slate-700 mb-2">Lesson Title <span class="text-rose-500">*</span></label>
+                            <input type="text" id="title" maxlength="200" @bind="Title" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" placeholder="e.g. Setting up your workspace" />
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="order" class="block text-sm font-semibold text-slate-700 mb-2">Display Order (Position) <span class="text-xs text-slate-500">(auto-shift)</span></label>
+                            <input type="number" min="1" id="order" @bind="DisplayOrder" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition" />
+                    </div>
+                    <div class="sm:col-span-6">
+                        <label for="content" class="block text-sm font-semibold text-slate-700 mb-2">Lesson Content <span class="text-rose-500">*</span></label>
+                            <textarea id="content" rows="12" @bind="Content" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition font-mono" placeholder="Write lesson content here... Markdown/text support."></textarea>
+                    </div>
+                </div>
+                </div>
+            <div class="bg-slate-50/75 border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-3">
+                <button type="button" @onclick="GoBack" class="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                <button type="button" @onclick="UpdateLesson" disabled="@IsSaving" class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition disabled:opacity-70">
+                    @if (IsSaving)
+                    {
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Updating...</span>
+                    }
+                    else
+                    {
+                        <span>Update Lesson</span>
+                    }
+                </button>
+            </div>
+        </div>
+        }
+    </div>
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+    [Parameter] public int LessonId { get; set; }
+
+    private string CourseTitle = string.Empty;
+    private bool IsPageLoading = true;
+    private bool HasLoadError = false;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+
+    // Form State
+    private string Title = string.Empty;
+    private string Content = string.Empty;
+    private int DisplayOrder = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var courseTask = CourseClient.GetCourseAsync(CourseId);
+            var lessonTask = LessonClient.GetLessonAsync(CourseId, LessonId);
+            await Task.WhenAll(courseTask, lessonTask);
+
+            if (courseTask.Result != null)
+            {
+                CourseTitle = courseTask.Result.Title;
+            }
+
+            var lesson = lessonTask.Result;
+            if (lesson == null)
+            {
+                HasLoadError = true;
+                return;
+            }
+
+            Title = lesson.Title;
+            Content = lesson.Content;
+            DisplayOrder = lesson.DisplayOrder;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load lesson details. " + ex.Message;
+            HasLoadError = true;
+        }
+        finally
+        {
+            IsPageLoading = false;
+        }
+    }
+
+    private async Task UpdateLesson()
+    {
+        if (string.IsNullOrWhiteSpace(Title))
+        {
+            ErrorMessage = "Title is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Content))
+        {
+            ErrorMessage = "Content is required.";
+            return;
+        }
+
+        if (DisplayOrder < 1)
+        {
+            ErrorMessage = "Display Order must be a positive integer.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var updateRequest = new UpdateLessonRequest
+            {
+                Title = Title,
+                Content = Content,
+                DisplayOrder = DisplayOrder
+            };
+
+            var response = await LessonClient.UpdateLessonAsync(CourseId, LessonId, updateRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo($"/admin/courses/{CourseId}/lessons");
+            }
+            else
+            {
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error updating lesson: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void GoBack() => NavManager.NavigateTo($"/admin/courses/{CourseId}/lessons");
+}

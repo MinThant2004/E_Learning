@@ -9,6 +9,7 @@ using ELearningManagementSystem.Application.Features.AuditLogs.DTOs;
 using ELearningManagementSystem.Application.Features.AuditLogs.Services;
 using ELearningManagementSystem.Application.Interfaces;
 using ELearningManagementSystem.Domain.Entities;
+using ELearningManagementSystem.Shared.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -122,6 +123,21 @@ public class LessonService : ILessonService
         if (lesson == null)
             return Result.Failure<LessonDetailResponse>("LessonNotFound");
 
+        // Enrollment gate: non-admin users must be enrolled to view lesson content
+        if (_currentUserService.UserId.HasValue)
+        {
+            var isAdmin = await IsUserAdminAsync(_currentUserService.UserId.Value, cancellationToken);
+            if (!isAdmin)
+            {
+                var isEnrolled = await _context.Enrollments
+                    .AsNoTracking()
+                    .AnyAsync(e => e.CourseId == courseId && e.UserId == _currentUserService.UserId.Value, cancellationToken);
+
+                if (!isEnrolled)
+                    return Result.Failure<LessonDetailResponse>("NotEnrolled");
+            }
+        }
+
         var response = new LessonDetailResponse
         {
             LessonId = lesson.LessonId,
@@ -228,6 +244,10 @@ public class LessonService : ILessonService
         if (lesson.Course.DeleteFlag)
             return Result.Failure<LessonDetailResponse>("CannotUpdateLessonOfArchivedCourse");
 
+        var oldTitle = lesson.Title;
+        var oldContent = lesson.Content;
+        var oldDisplayOrder = lesson.DisplayOrder;
+
         // Check if display order is changed and shift other lessons
         if (lesson.DisplayOrder != request.DisplayOrder && request.DisplayOrder >= 1)
         {
@@ -278,12 +298,21 @@ public class LessonService : ILessonService
 
         if (_currentUserService.UserId.HasValue)
         {
+            var changes = new List<AuditLogChangeDto>();
+            if (!string.Equals(oldTitle, lesson.Title, StringComparison.Ordinal))
+                changes.Add(new AuditLogChangeDto { Field = "Title", OldValue = oldTitle, NewValue = lesson.Title });
+            if (!string.Equals(oldContent, lesson.Content, StringComparison.Ordinal))
+                changes.Add(new AuditLogChangeDto { Field = "Content", OldValue = oldContent, NewValue = lesson.Content });
+            if (oldDisplayOrder != lesson.DisplayOrder)
+                changes.Add(new AuditLogChangeDto { Field = "Display Order", OldValue = oldDisplayOrder.ToString(), NewValue = lesson.DisplayOrder.ToString() });
+
             await _auditLogService.CreateAuditLogAsync(new CreateAuditLogRequest
             {
                 UserId = _currentUserService.UserId.Value,
                 Action = "Update",
                 TableName = "Lessons",
-                RecordId = lesson.LessonId
+                RecordId = lesson.LessonId,
+                Changes = changes
             }, cancellationToken);
             
             _logger.LogInformation("User {UserId} updated Lesson {LessonId} in Course {CourseId} (Title={Title})", _currentUserService.UserId.Value, lesson.LessonId, lesson.CourseId, lesson.Title);
@@ -359,6 +388,15 @@ public class LessonService : ILessonService
         }
 
         return Result.Success(true);
+    }
+
+    private async Task<bool> IsUserAdminAsync(int userId, CancellationToken cancellationToken)
+    {
+        return await _context.UserRoles
+            .AsNoTracking()
+            .AnyAsync(ur => ur.UserId == userId &&
+                (ur.Role.RoleName == AppConstants.AdministratorRole || ur.Role.RoleName == AppConstants.SystemAdministratorRole),
+                cancellationToken);
     }
 
     private async Task ResequenceLessonsAsync(int courseId, CancellationToken cancellationToken)

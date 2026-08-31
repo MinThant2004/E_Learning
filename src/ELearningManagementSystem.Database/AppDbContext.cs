@@ -14,10 +14,19 @@ public partial class AppDbContext : DbContext, IAppDbContext
     public virtual DbSet<AuditLog> AuditLogs { get; set; }
     public virtual DbSet<Category> Categories { get; set; }
     public virtual DbSet<Course> Courses { get; set; }
+    public virtual DbSet<CourseExam> CourseExams { get; set; }
+    public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
+    public virtual DbSet<ExamQuestionOption> ExamQuestionOptions { get; set; }
+    public virtual DbSet<ExamPayment> ExamPayments { get; set; }
+    public virtual DbSet<CourseExamAttempt> CourseExamAttempts { get; set; }
+    public virtual DbSet<CourseExamAttemptAnswer> CourseExamAttemptAnswers { get; set; }
+    public virtual DbSet<PaymentMethod> PaymentMethods { get; set; }
+    public virtual DbSet<UserNotification> UserNotifications { get; set; }
     public virtual DbSet<Enrollment> Enrollments { get; set; }
     public virtual DbSet<Lesson> Lessons { get; set; }
     public virtual DbSet<LessonProgress> LessonProgresses { get; set; }
     public virtual DbSet<Permission> Permissions { get; set; }
+    public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
     public virtual DbSet<Question> Questions { get; set; }
     public virtual DbSet<QuestionOption> QuestionOptions { get; set; }
     public virtual DbSet<Quiz> Quizzes { get; set; }
@@ -36,6 +45,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.HasKey(e => e.AuditLogId).HasName("PK__AuditLog__EB5F6CBD48B50706");
             entity.Property(e => e.Action).HasMaxLength(100);
             entity.Property(e => e.TableName).HasMaxLength(100);
+            entity.Property(e => e.Changes);
             entity.HasOne(d => d.User).WithMany(p => p.AuditLogs)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -101,6 +111,22 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.Property(e => e.Module).HasMaxLength(100);
             entity.Property(e => e.PermissionCode).HasMaxLength(100);
             entity.Property(e => e.PermissionName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.HasKey(e => e.PasswordResetTokenId);
+            entity.Property(e => e.TokenHash).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ExpiresAt).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.VerifiedAt).IsRequired(false);
+            entity.Property(e => e.UsedAt).IsRequired(false);
+            entity.Ignore(e => e.IsExpired);
+            entity.Ignore(e => e.IsUsed);
+            entity.HasOne(d => d.User).WithMany(p => p.PasswordResetTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PasswordResetTokens_Users");
         });
 
         modelBuilder.Entity<Question>(entity =>
@@ -198,6 +224,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.Status).HasDefaultValue(true);
+            entity.Property(e => e.MustChangePassword).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<UserRole>(entity =>
@@ -210,6 +237,117 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.HasOne(d => d.User).WithMany(p => p.UserRoleUsers)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CourseExam>(entity =>
+        {
+            entity.HasKey(e => e.ExamId);
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ExamFee).HasColumnType("decimal(18, 2)").IsRequired();
+            entity.Property(e => e.MaxAttempts).HasDefaultValue(3);
+            entity.Property(e => e.Status).HasDefaultValue(true);
+            entity.HasOne(d => d.Course).WithMany(p => p.CourseExams)
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.CreatedByNavigation).WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<ExamQuestion>(entity =>
+        {
+            entity.HasKey(e => e.ExamQuestionId);
+            entity.Property(e => e.QuestionText).IsRequired();
+            entity.Property(e => e.DifficultyLevel).HasMaxLength(50).HasDefaultValue("Medium");
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamQuestions)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<ExamQuestionOption>(entity =>
+        {
+            entity.HasKey(e => e.OptionId);
+            entity.Property(e => e.OptionText).IsRequired();
+            entity.HasOne(d => d.Question).WithMany(p => p.ExamQuestionOptions)
+                .HasForeignKey(d => d.ExamQuestionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<ExamPayment>(entity =>
+        {
+            entity.HasKey(e => e.ExamPaymentId);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)").IsRequired();
+            entity.Property(e => e.PaymentMethod).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TransactionId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ScreenshotUrl).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValue("Pending");
+            entity.Property(e => e.IsUsed).HasDefaultValue(false);
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamPayments)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.ReviewedByNavigation).WithMany()
+                .HasForeignKey(d => d.ReviewedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CourseExamAttempt>(entity =>
+        {
+            entity.HasKey(e => e.AttemptId);
+            entity.Property(e => e.Score).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.Status).HasMaxLength(50).HasDefaultValue("InProgress");
+            entity.HasOne(d => d.CourseExam).WithMany(p => p.ExamAttempts)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.ExamPayment).WithMany(p => p.ExamAttempts)
+                .HasForeignKey(d => d.ExamPaymentId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<CourseExamAttemptAnswer>(entity =>
+        {
+            entity.HasKey(e => e.AttemptAnswerId);
+            entity.Property(e => e.QuestionTextSnapshot).IsRequired();
+            entity.HasOne(d => d.Attempt).WithMany(p => p.AttemptAnswers)
+                .HasForeignKey(d => d.AttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.ExamQuestion).WithMany()
+                .HasForeignKey(d => d.ExamQuestionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(d => d.SelectedOption).WithMany()
+                .HasForeignKey(d => d.SelectedOptionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<PaymentMethod>(entity =>
+        {
+            entity.HasKey(e => e.PaymentMethodId);
+            entity.Property(e => e.Code).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.AccountName).HasMaxLength(150).IsRequired();
+            entity.Property(e => e.AccountNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.LogoUrl).HasMaxLength(500);
+            entity.Property(e => e.QrCodeUrl).HasMaxLength(500);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.DisplayOrder).HasDefaultValue(1);
+        });
+
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.HasKey(e => e.NotificationId);
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Message).IsRequired();
+            entity.Property(e => e.Type).HasMaxLength(50).HasDefaultValue("Info");
+            entity.Property(e => e.TargetUrl).HasMaxLength(500).HasDefaultValue("/course-exams");
+            entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         OnModelCreatingPartial(modelBuilder);

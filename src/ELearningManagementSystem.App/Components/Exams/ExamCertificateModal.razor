@@ -1,0 +1,206 @@
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.Application.Features.ExamEngine.DTOs
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavManager
+@inject ExamEngineApiClient EngineApiClient
+
+@if (IsVisible)
+{
+    <!-- Modal Backdrop positioned top-16 underneath the 64px website navbar header so top header is NEVER hidden -->
+    <div class="fixed inset-x-0 bottom-0 top-16 z-30 bg-slate-900/50 backdrop-blur-xs flex items-start justify-center p-4 overflow-y-auto" @onclick="Close" role="dialog" aria-modal="true">
+        <div class="max-w-4xl w-full bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative my-4 print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:bg-white"
+             @onclick:stopPropagation="true">
+            
+            <!-- Close Button (Hidden in Print) -->
+            <button type="button" @onclick="Close"
+                    class="absolute top-5 right-5 w-8 h-8 rounded-full bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all print:hidden cursor-pointer shadow-2xs z-20" aria-label="Close">
+                ✕
+            </button>
+
+            <!-- 1. Top Section Metadata Header (Hidden in Print) -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs print:hidden">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">@CourseTitle</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                            ✓ Certificate Earned
+                        </span>
+                    </div>
+                    <h2 class="text-lg font-extrabold text-slate-900 leading-tight">
+                        @CourseTitle — Digital Certificate
+                    </h2>
+                </div>
+
+                <div class="text-left sm:text-right shrink-0">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Student Recipient</span>
+                    <span class="text-sm font-extrabold text-slate-900 block">@StudentName</span>
+                </div>
+            </div>
+
+            <!-- 2. ULTRA-CLEAN E-LEARNING CERTIFICATE CANVAS (No QR/ID, Elegant Instructor Signature) -->
+            <div id="certificate-print-area" class="max-w-[860px] mx-auto bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center space-y-8 shadow-2xs relative print:border-none print:shadow-none print:max-w-none print:p-8">
+                
+                <!-- Double Subtle Inner Border Frame -->
+                <div class="border border-slate-100 rounded-xl p-6 sm:p-10 space-y-8 bg-white">
+                    
+                    <!-- Top Academic Brand Logo -->
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-black mx-auto">
+                            🎓
+                        </div>
+                        <span class="text-[11px] font-extrabold tracking-widest text-indigo-600 uppercase">EduSphere E-Learning Portal</span>
+                    </div>
+
+                    <!-- Certificate Title -->
+                    <div class="space-y-1.5">
+                        <h1 class="text-2xl sm:text-4xl font-serif font-black text-slate-900 tracking-wider uppercase">
+                            Certificate of Achievement
+                        </h1>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Official Certification of Completion</p>
+                    </div>
+
+                    <div class="w-16 h-0.5 bg-indigo-600 mx-auto rounded-full"></div>
+
+                    <!-- Recipient Presentation -->
+                    <div class="space-y-3 py-2">
+                        <p class="text-xs sm:text-sm font-medium text-slate-500 italic">This is proudly presented to</p>
+                        <h2 class="text-3xl sm:text-4xl font-serif font-bold text-slate-900 tracking-tight">
+                            @StudentName
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed pt-1">
+                            for successfully completing all course requirements and passing the certification examination for
+                        </p>
+                        <div class="text-base sm:text-lg font-extrabold text-indigo-900 bg-indigo-50/70 border border-indigo-100 py-2.5 px-6 rounded-xl inline-block mt-1">
+                            @CourseTitle
+                        </div>
+                    </div>
+
+                    <!-- Performance Metrics Badges -->
+                    <div class="flex items-center justify-center gap-4 text-xs pt-2">
+                        <div class="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Score Achieved</span>
+                            <span class="font-extrabold text-emerald-600 text-sm">@Score.ToString("N0")%</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Issue Date</span>
+                            <span class="font-bold text-slate-800 text-sm">@IssueDate.ToString("dd MMM yyyy")</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer: Date & Instructor Signature Line -->
+                    <div class="pt-8 border-t border-slate-100 grid grid-cols-2 gap-8 items-end text-left">
+                        <!-- Date Info -->
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Date Issued</span>
+                            <span class="text-xs font-extrabold text-slate-800 block">@IssueDate.ToString("dd MMMM yyyy")</span>
+                        </div>
+
+                        <!-- Handwritten Instructor Signature -->
+                        <div class="text-right space-y-1">
+                            <div class="h-8 flex items-end justify-end">
+                                <!-- Styled Signature text -->
+                                <span class="font-serif italic font-extrabold text-indigo-950 text-base tracking-wide border-b border-slate-400 pb-0.5 px-2 inline-block">
+                                    Dr. Alexander Wright
+                                </span>
+                            </div>
+                            <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pt-1">
+                                Academic Program Director
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- 5. SIMPLIFIED ACTION BUTTONS (Hidden in Print) -->
+            <div class="flex items-center justify-between gap-3 pt-2 print:hidden relative">
+                
+                <!-- Left Navigation Action -->
+                <button type="button" @onclick="Close"
+                        class="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs">
+                    Close
+                </button>
+
+                <!-- Primary: Download Certificate -->
+                <button type="button" @onclick="DownloadCertificate" disabled="@IsDownloading"
+                        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs shadow-2xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                    @if (IsDownloading)
+                    {
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Downloading...</span>
+                    }
+                    else
+                    {
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Download Certificate</span>
+                    }
+                </button>
+
+            </div>
+
+            @if (DownloadError != null)
+            {
+                <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs font-bold text-rose-700 flex items-center justify-between gap-3 print:hidden">
+                    <span>⚠️ @DownloadError</span>
+                    <button type="button" @onclick='() => DownloadError = null' class="text-rose-400 hover:text-rose-600 font-bold">✕</button>
+                </div>
+            }
+
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter] public string StudentName { get; set; } = "Student";
+    [Parameter] public string CourseTitle { get; set; } = "Course Examination";
+    [Parameter] public decimal Score { get; set; }
+    [Parameter] public DateTime IssueDate { get; set; } = DateTime.UtcNow;
+    [Parameter] public int AttemptId { get; set; }
+
+    private bool IsDownloading = false;
+    private string? DownloadError;
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    private async Task DownloadCertificate()
+    {
+        if (AttemptId <= 0) return;
+        IsDownloading = true;
+        DownloadError = null;
+        try
+        {
+            var res = await EngineApiClient.DownloadCertificateFileAsync(AttemptId);
+            if (res.Success && res.FileBytes != null)
+            {
+                var base64 = Convert.ToBase64String(res.FileBytes);
+                var fileName = res.FileName ?? "EduSphere_Certificate.html";
+                await JSRuntime.InvokeVoidAsync("eval",
+                    $"const a=document.createElement('a');a.href='data:text/html;base64,{base64}';a.download='{fileName}';document.body.appendChild(a);a.click();document.body.removeChild(a);");
+            }
+            else
+            {
+                DownloadError = res.Error ?? "Failed to download certificate. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            DownloadError = "Certificate download failed: " + ex.Message;
+        }
+        finally
+        {
+            IsDownloading = false;
+        }
+    }
+}

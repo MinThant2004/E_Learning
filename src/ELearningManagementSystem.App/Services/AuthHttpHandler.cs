@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Blazored.LocalStorage;
 
 namespace ELearningManagementSystem.App.Services;
 
@@ -12,12 +11,12 @@ namespace ELearningManagementSystem.App.Services;
 /// </summary>
 public class AuthHttpHandler : DelegatingHandler
 {
-    private readonly ILocalStorageService _localStorage;
+    private readonly TokenStorageService _tokenStorage;
     private readonly AuthApiService _authApiService;
 
-    public AuthHttpHandler(ILocalStorageService localStorage, AuthApiService authApiService)
+    public AuthHttpHandler(TokenStorageService tokenStorage, AuthApiService authApiService)
     {
-        _localStorage = localStorage;
+        _tokenStorage = tokenStorage;
         _authApiService = authApiService;
     }
 
@@ -26,7 +25,7 @@ public class AuthHttpHandler : DelegatingHandler
         CancellationToken cancellationToken)
     {
         // Attach current access token
-        var token = await _localStorage.GetItemAsStringAsync("authToken");
+        var token = await _tokenStorage.GetAccessTokenAsync();
         if (!string.IsNullOrWhiteSpace(token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -39,7 +38,7 @@ public class AuthHttpHandler : DelegatingHandler
             if (refreshed)
             {
                 // Retry original request once with new token
-                var newToken = await _localStorage.GetItemAsStringAsync("authToken");
+                var newToken = await _tokenStorage.GetAccessTokenAsync();
                 var retryRequest = await CloneRequestAsync(request);
                 if (!string.IsNullOrWhiteSpace(newToken))
                     retryRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);

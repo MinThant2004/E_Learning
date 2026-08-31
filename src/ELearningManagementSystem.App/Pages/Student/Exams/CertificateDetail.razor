@@ -1,0 +1,208 @@
+@page "/certificates/{attemptId:int}"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.Application.Features.ExamEngine.DTOs
+@using ELearningManagementSystem.App.Components.UI
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ExamEngineApiClient EngineApiClient
+@inject NavigationManager NavManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Certificate Details - EduSphere</PageTitle>
+
+<div class="bg-slate-50 min-h-screen py-8 text-slate-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
+
+        <!-- Top Breadcrumb & Actions Bar (Always under Website Header) -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between gap-4 shadow-2xs">
+            <div class="flex items-center gap-3">
+                <button type="button" @onclick='() => NavManager.NavigateTo("/my-certificates")'
+                        class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all cursor-pointer">
+                    ←
+                </button>
+                <div>
+                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">Official Certificate</span>
+                    <h1 class="text-lg font-extrabold text-slate-900 mt-0.5">Certificate of Completion</h1>
+                </div>
+            </div>
+
+            <button type="button" @onclick="DownloadCertificate" disabled="@(IsDownloading || IsLoading)"
+                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs shadow-2xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                @if (IsDownloading)
+                {
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Downloading...</span>
+                }
+                else
+                {
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download Certificate</span>
+                }
+            </button>
+        </div>
+
+        @if (DownloadError != null)
+        {
+            <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-bold text-rose-700 flex items-center justify-between gap-3 shadow-2xs">
+                <span>⚠️ @DownloadError</span>
+                <button type="button" @onclick='() => DownloadError = null' class="text-rose-400 hover:text-rose-600 font-bold">✕</button>
+            </div>
+        }
+
+        @if (IsLoading)
+        {
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3 shadow-2xs">
+                <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p class="text-xs font-semibold text-slate-500">Loading certificate details...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(ErrorMessage) || CertificateData == null)
+        {
+            <EmptyState Title="Certificate Not Found" Description="@ErrorMessage">
+                <ActionTemplate>
+                    <button @onclick='() => NavManager.NavigateTo("/course-exams")'
+                            class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs transition-all cursor-pointer">
+                        Back to Course Exams
+                    </button>
+                </ActionTemplate>
+            </EmptyState>
+        }
+        else
+        {
+            <!-- CLEAN E-LEARNING CERTIFICATE CARD (Centered, Modern, Professional LMS Style) -->
+            <div id="certificate-print-area" class="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center space-y-8 shadow-2xs relative print:border-none print:shadow-none print:p-8">
+                
+                <!-- Inner Border Frame -->
+                <div class="border border-slate-200/70 rounded-2xl p-6 sm:p-10 space-y-8 bg-white">
+                    
+                    <!-- Header Seal -->
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-black mx-auto">
+                            🎓
+                        </div>
+                        <span class="text-xs font-extrabold tracking-widest text-indigo-600 uppercase">EduSphere E-Learning Portal</span>
+                    </div>
+
+                    <!-- Certificate Title -->
+                    <div class="space-y-1">
+                        <h2 class="text-2xl sm:text-4xl font-serif font-black text-slate-900 tracking-wider uppercase">
+                            Certificate of Achievement
+                        </h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Official Academic Credential</p>
+                    </div>
+
+                    <div class="w-16 h-0.5 bg-indigo-600 mx-auto rounded-full"></div>
+
+                    <!-- Presentation Body -->
+                    <div class="space-y-3 py-2">
+                        <p class="text-xs sm:text-sm font-medium text-slate-500 italic">This certifies that</p>
+                        <h3 class="text-3xl sm:text-4xl font-serif font-bold text-slate-900 tracking-tight">
+                            @CertificateData.StudentName
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed pt-1">
+                            has successfully completed all requirements and passed the certification examination for
+                        </p>
+                        <div class="text-base sm:text-lg font-extrabold text-indigo-900 bg-indigo-50/70 border border-indigo-100 py-2.5 px-6 rounded-xl inline-block shadow-2xs mt-1">
+                            @CertificateData.CourseTitle
+                        </div>
+                    </div>
+
+                    <!-- Metrics Badges -->
+                    <div class="flex flex-wrap items-center justify-center gap-4 text-xs pt-2">
+                        <div class="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Score Achieved</span>
+                            <span class="font-extrabold text-emerald-600 text-sm">@CertificateData.Score.ToString("N0")%</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Issue Date</span>
+                            <span class="font-bold text-slate-800 text-sm">@CertificateData.IssuedAt.ToString("dd MMM yyyy")</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer: Date & Instructor Signature Line -->
+                    <div class="pt-8 border-t border-slate-100 grid grid-cols-2 gap-8 items-end text-left">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Date Issued</span>
+                            <span class="text-xs font-extrabold text-slate-800 block">@CertificateData.IssuedAt.ToString("dd MMMM yyyy")</span>
+                        </div>
+
+                        <!-- Handwritten Instructor Signature -->
+                        <div class="text-right space-y-1">
+                            <div class="h-8 flex items-end justify-end">
+                                <span class="font-serif italic font-extrabold text-indigo-950 text-base tracking-wide border-b border-slate-400 pb-0.5 px-2 inline-block">
+                                    Dr. Alexander Wright
+                                </span>
+                            </div>
+                            <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 pt-1">
+                                Academic Program Director
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public int AttemptId { get; set; }
+
+    private PublicCertificateResponse? CertificateData;
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+    private bool IsDownloading = false;
+    private string? DownloadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            CertificateData = await EngineApiClient.GetPublicCertificateAsync(AttemptId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task DownloadCertificate()
+    {
+        IsDownloading = true;
+        DownloadError = null;
+        try
+        {
+            var res = await EngineApiClient.DownloadCertificateFileAsync(AttemptId);
+            if (res.Success && res.FileBytes != null)
+            {
+                var base64 = Convert.ToBase64String(res.FileBytes);
+                var fileName = res.FileName ?? "EduSphere_Certificate.html";
+                await JSRuntime.InvokeVoidAsync("eval",
+                    $"const a=document.createElement('a');a.href='data:text/html;base64,{base64}';a.download='{fileName}';document.body.appendChild(a);a.click();document.body.removeChild(a);");
+            }
+            else
+            {
+                DownloadError = res.Error ?? "Failed to download certificate. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            DownloadError = "Certificate download failed: " + ex.Message;
+        }
+        finally
+        {
+            IsDownloading = false;
+        }
+    }
+}

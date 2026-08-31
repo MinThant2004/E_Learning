@@ -33,7 +33,7 @@ public class RoleApiClient
     {
         var response = await _httpClient.PostAsJsonAsync("api/roles", request);
         if (response.IsSuccessStatusCode) return (true, null);
-        var error = await response.Content.ReadAsStringAsync();
+        var error = await ApiResponseHelper.GetErrorMessageAsync(response);
         return (false, error);
     }
 
@@ -41,7 +41,7 @@ public class RoleApiClient
     {
         var response = await _httpClient.PutAsJsonAsync($"api/roles/{id}", request);
         if (response.IsSuccessStatusCode) return (true, null);
-        var error = await response.Content.ReadAsStringAsync();
+        var error = await ApiResponseHelper.GetErrorMessageAsync(response);
         return (false, error);
     }
 
@@ -49,7 +49,7 @@ public class RoleApiClient
     {
         var response = await _httpClient.PutAsJsonAsync($"api/roles/{id}/permissions", request);
         if (response.IsSuccessStatusCode) return (true, null);
-        var error = await response.Content.ReadAsStringAsync();
+        var error = await ApiResponseHelper.GetErrorMessageAsync(response);
         return (false, error);
     }
 }

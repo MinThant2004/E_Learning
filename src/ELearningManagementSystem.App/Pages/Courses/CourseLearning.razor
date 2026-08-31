@@ -7,6 +7,8 @@
 @inject LessonApiClient LessonClient
 @inject CourseApiClient CourseClient
 @inject LessonProgressApiClient LessonProgressClient
+@inject EnrollmentApiClient EnrollmentClient
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
 
 <PageTitle>@ActiveLesson?.Title - @CourseTitle</PageTitle>
@@ -214,6 +216,8 @@
     private string? ErrorMessage;
     private string? CompletionStatusMessage;
     private bool CompletionStatusIsError = false;
+    private bool IsEnrolled = false;
+    private bool IsAdmin = false;
 
     private int? PrevLessonId;
     private int? NextLessonId;
@@ -221,8 +225,43 @@
     protected override async Task OnParametersSetAsync()
     {
         CompletionStatusMessage = null;
+
+        await CheckEnrollmentAccess();
+        if (!IsEnrolled && !IsAdmin)
+        {
+            return; // Access denied — user was already redirected
+        }
+
         await LoadCourseName();
         await LoadLessonsAndActive();
+    }
+
+    private async Task CheckEnrollmentAccess()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated != true)
+            {
+                NavManager.NavigateTo($"/courses/{CourseId}");
+                return;
+            }
+
+            IsAdmin = user.IsInRole("Administrator") || user.IsInRole("System Administrator");
+            if (IsAdmin) return;
+
+            IsEnrolled = await EnrollmentClient.CheckEnrollmentStatusAsync(CourseId);
+            if (!IsEnrolled)
+            {
+                NavManager.NavigateTo($"/courses/{CourseId}?enrollRequired=true");
+            }
+        }
+        catch
+        {
+            NavManager.NavigateTo($"/courses/{CourseId}");
+        }
     }
 
     private async Task LoadCourseName()
@@ -271,6 +310,13 @@
             {
                 // Load active lesson details
                 ActiveLesson = await LessonClient.GetLessonAsync(CourseId, LessonId);
+
+                // Handle 403 from server enrollment gate (race condition fallback)
+                if (ActiveLesson == null && !IsAdmin)
+                {
+                    NavManager.NavigateTo($"/courses/{CourseId}?enrollRequired=true");
+                    return;
+                }
             }
             
             // Load course progress
@@ -285,6 +331,10 @@
             }
 
             CalculateNavIds();
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            NavManager.NavigateTo($"/courses/{CourseId}?enrollRequired=true");
         }
         catch (Exception ex)
         {

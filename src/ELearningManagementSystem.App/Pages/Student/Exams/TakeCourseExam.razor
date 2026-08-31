@@ -1,0 +1,470 @@
+@page "/course-exams/{examId:int}/take"
+@layout AuthLayout
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Layout
+@using ELearningManagementSystem.Application.Features.ExamEngine.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@attribute [Authorize]
+@implements IDisposable
+@inject ExamEngineApiClient EngineApiClient
+@inject NavigationManager NavManager
+
+<PageTitle>@(Session != null ? $"Exam: {Session.ExamTitle}" : "Exam Engine") - EduSphere</PageTitle>
+
+@if (Session != null && RemainingSeconds > 0 && !IsSubmitting)
+{
+    <NavigationLock ConfirmExternalNavigation="true" />
+}
+
+@if (IsLoading)
+{
+    <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-800 space-y-4">
+        <div class="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div class="text-center">
+            <p class="text-sm font-bold text-slate-900">Preparing certification exam session...</p>
+            <p class="text-xs text-slate-500 mt-1">Loading questions &amp; your saved progress</p>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-800 space-y-6">
+        <div class="max-w-md w-full bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-5 shadow-2xs">
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl flex items-center justify-center mx-auto text-xl">
+                ⚠️
+            </div>
+            <div>
+                <h2 class="text-base font-extrabold text-slate-900">Cannot Start Exam</h2>
+                <p class="text-xs text-slate-600 leading-relaxed mt-2">@ErrorMessage</p>
+            </div>
+            <button @onclick='() => NavManager.NavigateTo("/course-exams")'
+                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs">
+                Back to Course Exams
+            </button>
+        </div>
+    </div>
+}
+else if (Session != null && Session.Questions.Any())
+{
+    var currentQuestion = Session.Questions[CurrentQuestionIndex];
+    var isLastQuestion = CurrentQuestionIndex == Session.Questions.Count - 1;
+    var answeredCount = Session.Questions.Count(q => q.SelectedOptionId.HasValue);
+    var totalCount = Session.Questions.Count;
+    var answersPct = totalCount > 0 ? (int)((double)answeredCount / totalCount * 100) : 0;
+    var isTimeLow = RemainingSeconds <= 300;
+    var isCriticalTime = RemainingSeconds <= 60;
+
+    <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none">
+
+        <!-- Standalone Dedicated Exam Top Header (56-64px height) -->
+        <header class="bg-white border-b border-slate-200 shadow-2xs px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between gap-4 sticky top-0 z-30 shrink-0">
+            <!-- Course Title & Exam Title -->
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-xs font-semibold text-slate-500 block truncate leading-none">@Session.CourseTitle</span>
+                    <h1 class="text-base sm:text-lg font-extrabold text-slate-900 truncate leading-tight mt-0.5">@Session.ExamTitle</h1>
+                </div>
+            </div>
+
+            <!-- Timer & Submit Exam Button -->
+            <div class="flex items-center gap-3 shrink-0">
+                <div role="timer" aria-live="off"
+                     class="px-3.5 py-1.5 rounded-xl border flex items-center gap-2 font-mono text-xs sm:text-sm font-bold shadow-2xs transition-colors
+                            @(isCriticalTime ? "bg-rose-50 border-rose-300 text-rose-700 animate-pulse"
+                                    : isTimeLow ? "bg-amber-50 border-amber-300 text-amber-800"
+                                    : "bg-indigo-50/50 border-indigo-200 text-slate-900")">
+                    <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>@FormattedTimer</span>
+                </div>
+
+                <button type="button" @onclick="PromptSubmit"
+                        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs sm:text-sm transition-all cursor-pointer shadow-2xs">
+                    Submit Exam
+                </button>
+            </div>
+        </header>
+
+        <!-- 2-Column Assessment Workspace Layout (Explicit Inline Flexbox to guarantee 2-Column Layout everywhere) -->
+        <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 24px; max-width: 1200px; width: 100%; margin: 0 auto; padding: 24px 16px;" class="flex-1">
+
+            <!-- LEFT SIDEBAR: Question Navigation Sidebar (Fixed 220px width) -->
+            <aside style="width: 220px; min-width: 220px; flex-shrink: 0;" class="bg-white border border-slate-200 rounded-2xl p-4 space-y-4 shadow-2xs sticky top-20">
+                <div class="pb-2 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">QUESTIONS</h2>
+                    <span class="text-[11px] font-bold text-slate-600">@answeredCount/@totalCount</span>
+                </div>
+
+                <!-- Vertical Question Navigation Items List (Always vertical stack: ✓ 1, ● 2, ○ 3) -->
+                <div class="flex flex-col gap-1.5 max-h-80 overflow-y-auto pr-1">
+                    @for (int i = 0; i < totalCount; i++)
+                    {
+                        var idx = i;
+                        var q = Session.Questions[idx];
+                        var isCurrent = idx == CurrentQuestionIndex;
+                        var isAnswered = q.SelectedOptionId.HasValue;
+
+                        <button type="button" @onclick="() => CurrentQuestionIndex = idx"
+                                title="Question @(idx + 1) @(isAnswered ? "(answered)" : "(unanswered)")"
+                                class="h-9 w-full rounded-xl font-bold text-xs transition-all flex items-center justify-start px-3 gap-2 border cursor-pointer @(isCurrent ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs font-extrabold" : (isAnswered ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold hover:bg-emerald-100" : "bg-white border-slate-200 text-slate-600 hover:bg-indigo-50/40 hover:border-indigo-200"))">
+                            @if (isCurrent)
+                            {
+                                <span class="text-white font-extrabold">●</span>
+                            }
+                            else if (isAnswered)
+                            {
+                                <span class="text-emerald-600 font-bold text-[11px]">✓</span>
+                            }
+                            else
+                            {
+                                <span class="text-slate-400 text-[11px]">○</span>
+                            }
+                            <span>Question @(idx + 1)</span>
+                        </button>
+                    }
+                </div>
+
+                <!-- Progress Bar & Stats -->
+                <div class="pt-3 border-t border-slate-100 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-extrabold text-slate-700">
+                        <span>@answersPct% Complete</span>
+                        <span class="text-[10px] text-slate-400 font-normal">@answeredCount/@totalCount</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div class="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                             style="width:@(answersPct)%;"></div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="pt-2 flex flex-col gap-1 text-[10px] text-slate-500 font-semibold">
+                        <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> <span>Answered</span></div>
+                        <div class="flex items-center gap-1.5"><span class="text-slate-400 font-bold">○</span> <span>Open</span></div>
+                    </div>
+                </div>
+
+                <!-- Autosave Note -->
+                <div class="pt-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center gap-1.5 leading-tight">
+                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Auto-saved continuously</span>
+                </div>
+            </aside>
+
+            <!-- RIGHT SIDE CONTENT: Main Question Panel (Takes ALL remaining width) -->
+            <div style="flex: 1 1 0%; min-width: 0; width: 100%;" class="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xs">
+
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <span class="text-xs font-bold text-slate-500">
+                        Question <strong class="text-slate-900 font-extrabold">@(CurrentQuestionIndex + 1)</strong> of <strong class="text-slate-900 font-extrabold">@totalCount</strong>
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border @(currentQuestion.SelectedOptionId.HasValue ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200")">
+                        @(currentQuestion.SelectedOptionId.HasValue ? "Answered ✓" : "Unanswered")
+                    </span>
+                </div>
+
+                <!-- Question Text (Explicit styles guaranteeing natural line wrapping) -->
+                <div style="width: 100%;">
+                    <h2 style="font-size: 18px; font-weight: 600; line-height: 1.5; text-align: left; word-break: break-word; color: #0f172a;" class="select-text">
+                        @currentQuestion.QuestionText
+                    </h2>
+                </div>
+
+                <!-- Answer Options -->
+                <div role="radiogroup" aria-label="Answer options" style="width: 100%;" class="space-y-3 pt-1">
+                    @{
+                        var optionLabels = new[] { "A", "B", "C", "D", "E", "F", "G", "H" };
+                    }
+                    @for (var oi = 0; oi < currentQuestion.Options.Count; oi++)
+                    {
+                        var opt = currentQuestion.Options[oi];
+                        var isSelected = currentQuestion.SelectedOptionId == opt.OptionId;
+                        <label @onclick="() => SelectOption(currentQuestion, opt.OptionId)"
+                               style="width: 100%; min-height: 48px;"
+                               class="group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer
+                                      @(isSelected ? "bg-indigo-50/70 border-2 border-indigo-600 text-indigo-950 font-semibold shadow-2xs"
+                                                   : "bg-white border-slate-200 hover:bg-indigo-50/30 hover:border-indigo-300 text-slate-800")">
+                            
+                            <!-- Option Letter Badge [A], [B], [C] -->
+                            <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors
+                                         @(isSelected ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-indigo-100 group-hover:text-indigo-700")">
+                                @optionLabels[Math.Min(oi, optionLabels.Length - 1)]
+                            </span>
+                            
+                            <input type="radio"
+                                   name="@($"q_{currentQuestion.AttemptAnswerId}")"
+                                   checked="@isSelected"
+                                   class="sr-only" />
+
+                            <span style="word-break: break-word; min-width: 0;" class="text-xs sm:text-sm leading-relaxed flex-1 select-text @(isSelected ? "text-indigo-950 font-semibold" : "text-slate-700")">@opt.OptionText</span>
+                            
+                            <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors @(isSelected ? "border-indigo-600 bg-indigo-600" : "border-slate-300 group-hover:border-indigo-400")">
+                                @if (isSelected)
+                                {
+                                    <div class="w-2 h-2 rounded-full bg-white"></div>
+                                }
+                            </div>
+                        </label>
+                    }
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div style="width: 100%;" class="pt-6 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                    <button type="button" @onclick="PreviousQuestion"
+                            disabled="@(CurrentQuestionIndex == 0)"
+                            class="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer">
+                        ← Previous
+                    </button>
+
+                    @if (isLastQuestion)
+                    {
+                        <button type="button" @onclick="PromptSubmit"
+                                class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs shadow-2xs transition-all cursor-pointer">
+                            Review &amp; Submit
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="NextQuestion"
+                                class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs shadow-2xs transition-all cursor-pointer">
+                            Next Question →
+                        </button>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Submit Modal -->
+    @if (ShowSubmitModal)
+    {
+        <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4" @onclick="() => ShowSubmitModal = false">
+            <div class="max-w-md w-full bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xl text-slate-800"
+                 @onclick:stopPropagation="true">
+                
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-extrabold shrink-0">
+                        📥
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900">Submit Certification Exam?</h3>
+                        <p class="text-xs text-slate-500">Confirm final submission of your exam answers.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5">
+                        <div class="text-base font-extrabold">@answeredCount</div>
+                        <div class="text-[10px] font-bold text-emerald-600 mt-0.5">Answered</div>
+                    </div>
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-2.5">
+                        <div class="text-base font-extrabold">@(totalCount - answeredCount)</div>
+                        <div class="text-[10px] font-bold text-amber-600 mt-0.5">Unanswered</div>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-slate-800">
+                        <div class="text-base font-extrabold">@totalCount</div>
+                        <div class="text-[10px] font-bold text-slate-500 mt-0.5">Total</div>
+                    </div>
+                </div>
+
+                @if (Session.Questions.Any(q => !q.SelectedOptionId.HasValue))
+                {
+                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex gap-2 items-center">
+                        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>@(totalCount - answeredCount) unanswered question(s) will be scored as incorrect.</span>
+                    </div>
+                }
+
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="button" @onclick="() => ShowSubmitModal = false"
+                            class="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+                        Continue Exam
+                    </button>
+                    <button type="button" @onclick="ConfirmSubmit"
+                            disabled="@IsSubmitting"
+                            class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                        @if (IsSubmitting)
+                        {
+                            <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Submitting...</span>
+                        }
+                        else
+                        {
+                            <span>Confirm &amp; Submit</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int ExamId { get; set; }
+
+    private ExamAttemptSessionResponse? Session;
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+    private int CurrentQuestionIndex = 0;
+    private int RemainingSeconds = 0;
+    private System.Threading.Timer? CountdownTimer;
+    private bool ShowSubmitModal = false;
+    private bool IsSubmitting = false;
+
+    private string FormattedTimer
+    {
+        get
+        {
+            var minutes = RemainingSeconds / 60;
+            var seconds = RemainingSeconds % 60;
+            return $"{minutes:D2}:{seconds:D2}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+            Session = await EngineApiClient.StartExamAttemptAsync(ExamId);
+
+            if (Session != null)
+            {
+                RemainingSeconds = Session.RemainingSeconds;
+                StartTimer();
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = ex.Message;
+            const string signal = "AttemptAlreadySubmitted:";
+            var idx = message.IndexOf(signal, StringComparison.Ordinal);
+            if (idx >= 0)
+            {
+                var attemptIdStr = message.Substring(idx + signal.Length).Trim();
+                if (int.TryParse(attemptIdStr, out var submittedAttemptId))
+                {
+                    NavManager.NavigateTo($"/course-exams/attempts/{submittedAttemptId}/result");
+                    return;
+                }
+            }
+            ErrorMessage = message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void StartTimer()
+    {
+        CountdownTimer?.Dispose();
+        CountdownTimer = new System.Threading.Timer(async _ =>
+        {
+            if (RemainingSeconds > 0)
+            {
+                RemainingSeconds--;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                CountdownTimer?.Dispose();
+                await InvokeAsync(AutoSubmitOnExpire);
+            }
+        }, null, 1000, 1000);
+    }
+
+    private async Task SelectOption(ExamAttemptQuestionDto question, int optionId)
+    {
+        question.SelectedOptionId = optionId;
+        StateHasChanged();
+
+        try
+        {
+            await EngineApiClient.SaveAnswerAsync(Session!.AttemptId, new SaveAnswerRequest
+            {
+                AttemptAnswerId = question.AttemptAnswerId,
+                SelectedOptionId = optionId
+            });
+        }
+        catch {}
+    }
+
+    private void NextQuestion()
+    {
+        if (Session != null && CurrentQuestionIndex < Session.Questions.Count - 1)
+        {
+            CurrentQuestionIndex++;
+        }
+    }
+
+    private void PreviousQuestion()
+    {
+        if (CurrentQuestionIndex > 0)
+        {
+            CurrentQuestionIndex--;
+        }
+    }
+
+    private void PromptSubmit()
+    {
+        ShowSubmitModal = true;
+    }
+
+    private async Task ConfirmSubmit()
+    {
+        if (Session == null || IsSubmitting) return;
+
+        IsSubmitting = true;
+        CountdownTimer?.Dispose();
+
+        try
+        {
+            var answersDict = Session.Questions.ToDictionary(q => q.AttemptAnswerId, q => q.SelectedOptionId);
+            var result = await EngineApiClient.SubmitExamAttemptAsync(Session.AttemptId, new SubmitExamAttemptRequest
+            {
+                AttemptId = Session.AttemptId,
+                Answers = answersDict
+            });
+
+            if (result != null)
+            {
+                NavManager.NavigateTo($"/course-exams/attempts/{Session.AttemptId}/result");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            ShowSubmitModal = false;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private async Task AutoSubmitOnExpire()
+    {
+        if (Session == null || IsSubmitting) return;
+        await ConfirmSubmit();
+    }
+
+    public void Dispose()
+    {
+        CountdownTimer?.Dispose();
+    }
+}

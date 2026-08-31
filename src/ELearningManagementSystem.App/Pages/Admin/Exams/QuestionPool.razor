@@ -1,0 +1,425 @@
+@page "/admin/exams/{ExamId:int}/questions"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.App.Components.Shared
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Permission:Course.Update")]
+@inject CourseExamApiClient ExamApiClient
+@inject NavigationManager NavManager
+
+<PageTitle>Question Pool Management - Admin</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <a href="/admin/exams" class="hover:text-indigo-600">Course Exams</a>
+                <span>/</span>
+                <span>Question Pool</span>
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Question Pool Management</h1>
+            @if (ExamDetail != null)
+            {
+                <p class="text-sm font-medium text-slate-500 mt-1">
+                    Exam: <span class="font-bold text-slate-800">@ExamDetail.Title</span> (@ExamDetail.CourseTitle)
+                </p>
+            }
+        </div>
+
+        <div class="flex items-center gap-3">
+            @if (ExamDetail != null)
+            {
+                <div class="px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 @(Questions != null && Questions.Count >= ExamDetail.QuestionCount ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200")">
+                    <span>Pool Status:</span>
+                    <span>@(Questions?.Count ?? 0) / @ExamDetail.QuestionCount Required</span>
+                </div>
+            }
+
+            <button @onclick="OpenAddQuestionModal"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-all cursor-pointer">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Question
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Banner -->
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-rose-700 text-sm font-medium">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>@ErrorMessage</span>
+            </div>
+            <button @onclick="() => ErrorMessage = null" class="text-rose-400 hover:text-rose-600">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    }
+
+    <!-- Question List -->
+    @if (IsLoading)
+    {
+        <div class="space-y-3">
+            <SkeletonCard />
+            <SkeletonCard />
+        </div>
+    }
+    else if (Questions == null || !Questions.Any())
+    {
+        <EmptyState Title="No Pool Questions Yet"
+                    Description="Add questions to the question pool so the system can randomly generate exam papers for students.">
+            <ActionTemplate>
+                <button @onclick="OpenAddQuestionModal"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add First Question
+                </button>
+            </ActionTemplate>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="space-y-4">
+            @foreach (var (q, index) in Questions.Select((q, i) => (q, i)))
+            {
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-3 hover:border-slate-300 transition-all">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                                @(index + 1)
+                            </span>
+                            <div>
+                                <h4 class="text-base font-bold text-slate-900 leading-snug">@q.QuestionText</h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider @GetDifficultyBadgeClass(q.DifficultyLevel)">
+                                        @q.DifficultyLevel
+                                    </span>
+                                    <span class="text-xs text-slate-400">@q.Options.Count Options</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button @onclick="() => OpenEditQuestionModal(q)" title="Edit Question"
+                                    class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button @onclick="() => ConfirmDeleteQuestion(q)" title="Delete Question"
+                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Options Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                        @foreach (var opt in q.Options)
+                        {
+                            <div class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold @(opt.IsCorrect ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-slate-50 text-slate-700 border border-slate-100")">
+                                <div class="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 @(opt.IsCorrect ? "bg-emerald-600 text-white" : "bg-slate-300")">
+                                    @if (opt.IsCorrect)
+                                    {
+                                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    }
+                                </div>
+                                <span class="truncate">@opt.OptionText</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Modal: Add / Edit Question -->
+@if (IsModalOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-900">@(EditingQuestionId.HasValue ? "Edit Question" : "Add Question to Pool")</h3>
+                <button @onclick="CloseModal" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Question Text</label>
+                    <textarea @bind="FormQuestionText" rows="3" placeholder="Enter the full question statement..." class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20"></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Difficulty Level</label>
+                    <select @bind="FormDifficulty" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20">
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+
+                <!-- 4 Options Inputs -->
+                <div class="space-y-2 pt-2">
+                    <label class="block font-semibold text-slate-700">Multiple Choice Options (Select 1 correct option)</label>
+
+                    @for (int i = 0; i < FormOptions.Count; i++)
+                    {
+                        var optIndex = i;
+                        <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                            <input type="radio"
+                                   name="correctOptionGroup"
+                                   checked="@FormOptions[optIndex].IsCorrect"
+                                   @onchange="() => SetCorrectOption(optIndex)"
+                                   class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                            <input type="text"
+                                   @bind="FormOptions[optIndex].OptionText"
+                                   placeholder="@($"Option {optIndex + 1} text...")"
+                                   class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-medium text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                            @if (FormOptions[optIndex].IsCorrect)
+                            {
+                                <span class="text-xs font-bold text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded-md">Correct Answer</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button @onclick="CloseModal" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm">Cancel</button>
+                <button @onclick="SaveQuestion" disabled="@IsSaving" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    @(IsSaving ? "Saving..." : "Save Question")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Confirmation Modal for Delete -->
+@if (SelectedQuestionForDelete != null)
+{
+    <ConfirmationModal IsOpen="true"
+                       Title="Delete Question"
+                       Message="Are you sure you want to remove this question from the question pool?"
+                       ConfirmButtonText="Delete"
+                       OnConfirm="ExecuteDelete"
+                       OnCancel="() => SelectedQuestionForDelete = null" />
+}
+
+@code {
+    [Parameter] public int ExamId { get; set; }
+
+    private CourseExamResponse? ExamDetail;
+    private List<ExamQuestionResponse>? Questions;
+    private bool IsLoading = true;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+
+    // Form State
+    private bool IsModalOpen = false;
+    private int? EditingQuestionId;
+    private string FormQuestionText = string.Empty;
+    private string FormDifficulty = "Medium";
+    private List<CreateExamOptionRequest> FormOptions = new();
+
+    // Action State
+    private ExamQuestionResponse? SelectedQuestionForDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExamDetail();
+        await LoadQuestions();
+    }
+
+    private async Task LoadExamDetail()
+    {
+        try
+        {
+            ExamDetail = await ExamApiClient.GetExamByIdAsync(ExamId);
+        }
+        catch
+        {
+            // Non-critical
+        }
+    }
+
+    private async Task LoadQuestions()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Questions = await ExamApiClient.GetQuestionPoolAsync(ExamId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to load pool questions: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OpenAddQuestionModal()
+    {
+        EditingQuestionId = null;
+        FormQuestionText = string.Empty;
+        FormDifficulty = "Medium";
+        FormOptions = new List<CreateExamOptionRequest>
+        {
+            new CreateExamOptionRequest { OptionText = "", IsCorrect = true },
+            new CreateExamOptionRequest { OptionText = "", IsCorrect = false },
+            new CreateExamOptionRequest { OptionText = "", IsCorrect = false },
+            new CreateExamOptionRequest { OptionText = "", IsCorrect = false }
+        };
+        IsModalOpen = true;
+    }
+
+    private void OpenEditQuestionModal(ExamQuestionResponse q)
+    {
+        EditingQuestionId = q.ExamQuestionId;
+        FormQuestionText = q.QuestionText;
+        FormDifficulty = q.DifficultyLevel;
+        FormOptions = q.Options.Select(o => new CreateExamOptionRequest
+        {
+            OptionText = o.OptionText,
+            IsCorrect = o.IsCorrect
+        }).ToList();
+
+        // Ensure 4 options exist for uniform editing
+        while (FormOptions.Count < 4)
+        {
+            FormOptions.Add(new CreateExamOptionRequest { OptionText = "", IsCorrect = false });
+        }
+
+        IsModalOpen = true;
+    }
+
+    private void SetCorrectOption(int correctIndex)
+    {
+        for (int i = 0; i < FormOptions.Count; i++)
+        {
+            FormOptions[i].IsCorrect = (i == correctIndex);
+        }
+    }
+
+    private void CloseModal()
+    {
+        IsModalOpen = false;
+    }
+
+    private async Task SaveQuestion()
+    {
+        if (string.IsNullOrWhiteSpace(FormQuestionText))
+        {
+            ErrorMessage = "Question text is required.";
+            return;
+        }
+
+        if (FormOptions.Any(o => string.IsNullOrWhiteSpace(o.OptionText)))
+        {
+            ErrorMessage = "All options must have option text.";
+            return;
+        }
+
+        if (!FormOptions.Any(o => o.IsCorrect))
+        {
+            ErrorMessage = "One option must be marked as correct.";
+            return;
+        }
+
+        IsSaving = true;
+        ErrorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+            if (EditingQuestionId.HasValue)
+            {
+                var req = new UpdateExamQuestionRequest
+                {
+                    QuestionText = FormQuestionText,
+                    DifficultyLevel = FormDifficulty,
+                    Options = FormOptions
+                };
+                response = await ExamApiClient.UpdateQuestionInPoolAsync(EditingQuestionId.Value, req);
+            }
+            else
+            {
+                var req = new CreateExamQuestionRequest
+                {
+                    QuestionText = FormQuestionText,
+                    DifficultyLevel = FormDifficulty,
+                    Options = FormOptions
+                };
+                response = await ExamApiClient.AddQuestionToPoolAsync(ExamId, req);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                IsModalOpen = false;
+                await LoadQuestions();
+                await LoadExamDetail();
+            }
+            else
+            {
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Error saving question: " + ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void ConfirmDeleteQuestion(ExamQuestionResponse q)
+    {
+        SelectedQuestionForDelete = q;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (SelectedQuestionForDelete == null) return;
+        try
+        {
+            await ExamApiClient.DeleteQuestionFromPoolAsync(SelectedQuestionForDelete.ExamQuestionId);
+            SelectedQuestionForDelete = null;
+            await LoadQuestions();
+            await LoadExamDetail();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Delete failed: " + ex.Message;
+        }
+    }
+
+    private string GetDifficultyBadgeClass(string level) => level switch
+    {
+        "Easy" => "bg-emerald-100 text-emerald-800",
+        "Hard" => "bg-rose-100 text-rose-800",
+        _ => "bg-blue-100 text-blue-800"
+    };
+}

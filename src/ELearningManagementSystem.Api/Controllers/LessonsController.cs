@@ -53,7 +53,13 @@ public class LessonsController : ControllerBase
     public async Task<IActionResult> GetLesson(int courseId, int lessonId, CancellationToken cancellationToken)
     {
         var result = await _lessonService.GetLessonByIdAsync(courseId, lessonId, cancellationToken);
-        if (result.IsFailure) return NotFound(new { Error = result.Error });
+        if (result.IsFailure)
+        {
+            if (result.Error == "CourseNotFound" || result.Error == "LessonNotFound")
+                return NotFound(new { Error = result.Error });
+            if (result.Error == "NotEnrolled")
+                return StatusCode(403, new { Error = "NotEnrolled" });
+        }
         return Ok(result.Value);
     }
 

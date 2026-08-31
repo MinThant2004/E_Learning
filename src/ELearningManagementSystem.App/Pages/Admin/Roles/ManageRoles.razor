@@ -1,4 +1,4 @@
-@page "/admin/roles"
+﻿@page "/admin/roles"
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using ELearningManagementSystem.App.Components.Shared
@@ -13,21 +13,22 @@
 
 <PageTitle>Manage Roles</PageTitle>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="sm:flex sm:items-center sm:justify-between mb-8">
-        <PageHeader Title="Manage Roles" Description="View, create, and modify system roles and their permissions." />
-        <div class="mt-4 sm:mt-0 flex-shrink-0">
-            <AuthorizeView Policy="Permission:Role.Create">
-                <Authorized>
-                    <button @onclick="ShowCreateModal" class="inline-flex items-center justify-center rounded-full border border-transparent bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Create Role
-                    </button>
-                </Authorized>
-            </AuthorizeView>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Manage Roles</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-1">View, create, and modify system roles and their permissions.</p>
         </div>
+        <AuthorizeView Policy="Permission:Role.Create">
+            <Authorized>
+                <button @onclick="ShowCreateModal" type="button" disabled="@(isLoading || isSaving)" class="inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Role
+                </button>
+            </Authorized>
+        </AuthorizeView>
     </div>
 
     @if (errorMessage != null)
@@ -79,9 +80,7 @@
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role Name</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Created At</th>
-                        <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6 w-40">
-                            <span class="sr-only">Actions</span>
-                        </th>
+                        <th scope="col" class="relative py-4 pl-3 pr-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider sm:pr-6 w-24">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
@@ -119,7 +118,7 @@
                                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">@rowNum</td>
                                 <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-900 font-semibold">@GetFriendlyRoleName(role.RoleName)</td>
                                 <td class="px-3 py-4 text-sm text-slate-500">@role.Description</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@role.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">@role.CreatedAt.ToString("dd-MM-yyyy")</td>
                                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                     <div class="flex items-center justify-end space-x-3">
                                         <AuthorizeView Policy="Permission:Role.Update">
@@ -132,16 +131,6 @@
                                                 </button>
                                             </Authorized>
                                         </AuthorizeView>
-                                         <AuthorizeView Policy="Permission:Permission.Read">
-                                             <Authorized>
-                                                 <button @onclick="() => ShowPermissionsModal(role)" class="text-teal-600 hover:text-teal-900 transition-colors p-1 rounded hover:bg-teal-50" title="Manage Permissions">
-                                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                     </svg>
-                                                     <span class="sr-only">Permissions</span>
-                                                 </button>
-                                             </Authorized>
-                                         </AuthorizeView>
                                     </div>
                                 </td>
                             </tr>
@@ -153,21 +142,21 @@
     </div>
 </div>
 
-<!-- Role Edit Modal -->
+<!-- Role Edit Modal (details + permissions) -->
 @if (showRoleModal)
 {
     <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @onclick="CloseRoleModal" aria-hidden="true"></div>
 
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all w-full max-w-2xl sm:my-8 border border-slate-200">
                 <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <!-- <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
                             <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                             </svg>
-                        </div>
+                        </div> -->
                         <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
                             <h3 class="text-lg font-semibold leading-6 text-slate-900" id="modal-title">@(isEditing ? "Edit Role" : "Create Role")</h3>
                             <div class="mt-4 space-y-4">
@@ -183,7 +172,7 @@
                                 }
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700">Role Name</label>
-                                    @if (isEditing && (editingRole.RoleName == "Student" || editingRole.RoleName == "SuperAdmin" || editingRole.RoleName == "Admin"))
+                                    @if (isEditing && (editingRole.RoleName == "Student" || editingRole.RoleName == "System Administrator" || editingRole.RoleName == "Administrator"))
                                     {
                                         <input type="text" value="@GetFriendlyRoleName(editingRole.RoleName)" disabled class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 disabled:bg-slate-50" />
                                         <p class="mt-1 text-xs text-slate-500">Built-in role names cannot be changed.</p>
@@ -197,6 +186,76 @@
                                     <label class="block text-sm font-medium text-slate-700">Description</label>
                                     <textarea maxlength="255" @bind="editingRole.Description" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
                                 </div>
+
+                                @if (isEditing && canReadPermissions)
+                                {
+                                    <div class="border-t border-slate-200 pt-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <span class="block text-sm font-medium text-slate-700">Permissions</span>
+                                            <span class="text-xs text-slate-500">@selectedPermissionIds.Count selected</span>
+                                        </div>
+
+                                        @if (selectedRoleName == "System Administrator")
+                                        {
+                                            <div class="rounded-md bg-slate-50 p-4 border border-slate-200 mb-4 flex items-center space-x-2">
+                                                <span class="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-600/20">Protected system role</span>
+                                                <span class="text-sm text-slate-600">Permissions for this role are read-only to ensure system stability.</span>
+                                            </div>
+                                        }
+                                        else if (!canEditRolePermissions)
+                                        {
+                                            <div class="rounded-md bg-amber-50 p-4 border border-amber-200 mb-4 flex items-center space-x-3" role="status">
+                                                <svg class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                                <div>
+                                                    <span class="inline-flex items-center rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20">Read-only</span>
+                                                    <p class="mt-1 text-sm text-amber-700">You have view access to these permissions but do not have permission to modify them.</p>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (isPermissionsLoading)
+                                        {
+                                            <div class="flex justify-center py-8">
+                                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="max-h-[60vh] overflow-y-auto pr-2">
+                                                <div class="space-y-4">
+                                                    @foreach (var moduleGroup in allPermissions.GroupBy(p => p.Module).OrderBy(g => g.Key))
+                                                    {
+                                                        <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                                            <div class="bg-white px-4 py-3 border-b border-slate-200">
+                                                                <h4 class="text-sm font-semibold text-slate-900">@moduleGroup.Key</h4>
+                                                            </div>
+                                                            <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                @foreach (var perm in moduleGroup)
+                                                                {
+                                                                    <label class="relative flex items-start p-3 rounded-lg transition-colors @(CanTogglePermission(perm.PermissionId) ? "cursor-pointer hover:bg-slate-100" : "cursor-not-allowed opacity-80")">
+                                                                        <div class="flex h-6 items-center">
+                                                                            <input type="checkbox"
+                                                                                   checked="@selectedPermissionIds.Contains(perm.PermissionId)"
+                                                                                   @onchange="@(e => TogglePermission(perm.PermissionId, e.Value))"
+                                                                                   disabled="@(!CanTogglePermission(perm.PermissionId))"
+                                                                                   class="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
+                                                                        </div>
+                                                                        <div class="ml-3 text-sm leading-6">
+                                                                            <span class="font-medium text-slate-900 block">@perm.PermissionName</span>
+                                                                            <span class="text-slate-500 block">@perm.PermissionCode</span>
+                                                                        </div>
+                                                                    </label>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             </div>
                         </div>
                     </div>
@@ -210,114 +269,10 @@
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                         }
-                        Save
+                        Update
                     </button>
                     <button type="button" @onclick="CloseRoleModal" class="mt-3 inline-flex w-full justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancel
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-<!-- Permissions Modal -->
-@if (showPermissionsModal)
-{
-    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @onclick="ClosePermissionsModal" aria-hidden="true"></div>
-
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-slate-200">
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-teal-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <svg class="h-6 w-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                            <h3 class="text-lg font-semibold leading-6 text-slate-900" id="modal-title">Permissions for @GetFriendlyRoleName(selectedRoleName)</h3>
-                            <div class="mt-4">
-                                @if (!string.IsNullOrEmpty(modalError))
-                                {
-                                    <div class="rounded-md bg-red-50 p-4 border border-red-200 mb-4">
-                                        <div class="flex">
-                                            <div class="ml-3">
-                                                <h3 class="text-sm font-medium text-red-800">@modalError</h3>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                
-                                @if (isPermissionsLoading)
-                                {
-                                    <div class="flex justify-center py-8">
-                                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-                                    </div>
-                                }
-                                 else
-                                 {
-                                     @if (selectedRoleName == "SuperAdmin")
-                                     {
-                                         <div class="rounded-md bg-slate-50 p-4 border border-slate-200 mb-4 flex items-center justify-between">
-                                             <div class="flex items-center space-x-2">
-                                                 <span class="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-600/20">Protected system role</span>
-                                                 <span class="text-sm text-slate-600">Permissions for this role are read-only to ensure system stability.</span>
-                                             </div>
-                                         </div>
-                                     }
-                                     <div class="max-h-[60vh] overflow-y-auto pr-2">
-                                         <div class="space-y-6">
-                                             @foreach (var moduleGroup in allPermissions.GroupBy(p => p.Module).OrderBy(g => g.Key))
-                                             {
-                                                 <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                                                     <div class="bg-white px-4 py-3 border-b border-slate-200">
-                                                         <h4 class="text-sm font-semibold text-slate-900">@moduleGroup.Key</h4>
-                                                     </div>
-                                                     <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                         @foreach (var perm in moduleGroup)
-                                                         {
-                                                              <label class="relative flex items-start p-3 rounded-lg transition-colors @(selectedRoleName == "SuperAdmin" || !canAssignPermissions ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-slate-100")">
-                                                                  <div class="flex h-6 items-center">
-                                                                      <input type="checkbox" 
-                                                                             checked="@selectedPermissionIds.Contains(perm.PermissionId)"
-                                                                             @onchange="@(e => TogglePermission(perm.PermissionId, e.Value))"
-                                                                             disabled="@(selectedRoleName == "SuperAdmin" || !canAssignPermissions)"
-                                                                             class="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
-                                                                  </div>
-                                                                 <div class="ml-3 text-sm leading-6">
-                                                                     <span class="font-medium text-slate-900 block">@perm.PermissionName</span>
-                                                                     <span class="text-slate-500 block">@perm.PermissionCode</span>
-                                                                 </div>
-                                                             </label>
-                                                         }
-                                                     </div>
-                                                 </div>
-                                             }
-                                         </div>
-                                     </div>
-                                 }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                    @if (selectedRoleName != "SuperAdmin" && canAssignPermissions)
-                    {
-                        <button type="button" @onclick="SavePermissions" disabled="@isSaving" class="inline-flex w-full justify-center rounded-full border border-transparent bg-teal-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-70">
-                            @if (isSaving)
-                            {
-                                <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            }
-                            Save Permissions
-                        </button>
-                    }
-                    <button type="button" @onclick="ClosePermissionsModal" class="mt-3 inline-flex w-full justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        @(selectedRoleName == "SuperAdmin" ? "Close" : "Cancel")
                     </button>
                 </div>
             </div>
@@ -341,13 +296,31 @@
     private RoleModel editingRole = new();
 
     // Permissions State
-    private bool showPermissionsModal = false;
     private bool isPermissionsLoading = false;
     private int selectedRoleId;
     private string selectedRoleName = "";
     private List<PermissionResponse> allPermissions = new();
     private HashSet<int> selectedPermissionIds = new();
+    private HashSet<int> delegatablePermissionIds = new();
+    private bool canReadPermissions = false;
     private bool canAssignPermissions = false;
+    private bool isSystemAdmin = false;
+
+    // A role's permission editor is editable when the current user has Permission.Assign
+    // AND the target role is a delegable (lower-level) role. Administrator is always
+    // protected from regular Administrators, and System Administrator is always protected.
+    private bool canEditRolePermissions =>
+        canAssignPermissions &&
+        selectedRoleName != "System Administrator" &&
+        (isSystemAdmin || selectedRoleName != "Administrator");
+
+    // Within an editable role, a non-System-Administrator may only toggle permissions
+    // that fall within their own delegation authority.
+    private bool CanDelegatePermission(int permissionId) =>
+        isSystemAdmin || delegatablePermissionIds.Contains(permissionId);
+
+    private bool CanTogglePermission(int permissionId) =>
+        canEditRolePermissions && CanDelegatePermission(permissionId);
 
     protected override async Task OnInitializedAsync()
     {
@@ -359,8 +332,11 @@
 
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
+        isSystemAdmin = user.IsInRole("System Administrator");
         var assignAuth = await AuthorizationService.AuthorizeAsync(user, "Permission:Permission.Assign");
         canAssignPermissions = assignAuth.Succeeded;
+        var readAuth = await AuthorizationService.AuthorizeAsync(user, "Permission:Permission.Read");
+        canReadPermissions = readAuth.Succeeded;
         
         try
         {
@@ -369,6 +345,15 @@
             {
                 allPermissions = perms;
             }
+
+            // Delegation scope: the permission codes present in the JWT are the current
+            // user's effective permissions. Map them back to ids so the editor can mark
+            // which permissions this user is allowed to delegate.
+            var permissionCodes = user.FindAll("permission").Select(c => c.Value).ToHashSet();
+            delegatablePermissionIds = allPermissions
+                .Where(p => permissionCodes.Contains(p.PermissionCode))
+                .Select(p => p.PermissionId)
+                .ToHashSet();
         }
         catch (CustomApiException ex)
         {
@@ -444,17 +429,49 @@
         showRoleModal = true;
     }
 
-    private void ShowEditModal(RoleResponse role)
+    private async Task ShowEditModal(RoleResponse role)
     {
         isEditing = true;
-        editingRole = new RoleModel 
-        { 
-            RoleId = role.RoleId, 
-            RoleName = role.RoleName, 
-            Description = role.Description 
+        editingRole = new RoleModel
+        {
+            RoleId = role.RoleId,
+            RoleName = role.RoleName,
+            Description = role.Description
         };
+        selectedRoleId = role.RoleId;
+        selectedRoleName = role.RoleName;
+        selectedPermissionIds.Clear();
         modalError = null;
         showRoleModal = true;
+
+        await LoadRolePermissionsAsync();
+    }
+
+    private async Task LoadRolePermissionsAsync()
+    {
+        isPermissionsLoading = true;
+
+        try
+        {
+            var roleDetails = await RoleApi.GetRoleByIdAsync(selectedRoleId);
+            if (roleDetails != null)
+            {
+                foreach (var pId in roleDetails.PermissionIds)
+                {
+                    selectedPermissionIds.Add(pId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            modalError = "Failed to load role permissions.";
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isPermissionsLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void CloseRoleModal()
@@ -479,72 +496,41 @@
             {
                 var request = new UpdateRoleRequest { RoleName = editingRole.RoleName, Description = editingRole.Description };
                 var result = await RoleApi.UpdateRoleAsync(editingRole.RoleId, request);
-                if (result.Success)
+                if (!result.Success)
                 {
-                    showRoleModal = false;
-                    await LoadRolesAsync();
+                    modalError = GetFriendlyRoleError(result.Error);
+                    return;
                 }
-                else
+
+                if (canEditRolePermissions)
                 {
-                    modalError = result.Error;
+                    var permRequest = new AssignPermissionsRequest { PermissionIds = selectedPermissionIds.ToList() };
+                    var permResult = await RoleApi.AssignPermissionsAsync(selectedRoleId, permRequest);
+                    if (!permResult.Success)
+                    {
+                        modalError = GetFriendlyPermissionError(permResult.Error);
+                        return;
+                    }
                 }
             }
             else
             {
                 var request = new CreateRoleRequest { RoleName = editingRole.RoleName, Description = editingRole.Description };
                 var result = await RoleApi.CreateRoleAsync(request);
-                if (result.Success)
+                if (!result.Success)
                 {
-                    showRoleModal = false;
-                    await LoadRolesAsync();
-                }
-                else
-                {
-                    modalError = result.Error;
+                    modalError = GetFriendlyRoleError(result.Error);
+                    return;
                 }
             }
+
+            showRoleModal = false;
+            await LoadRolesAsync();
         }
         finally
         {
             isSaving = false;
         }
-    }
-
-    private async Task ShowPermissionsModal(RoleResponse role)
-    {
-        selectedRoleId = role.RoleId;
-        selectedRoleName = role.RoleName;
-        selectedPermissionIds.Clear();
-        modalError = null;
-        showPermissionsModal = true;
-        isPermissionsLoading = true;
-
-        try
-        {
-            var roleDetails = await RoleApi.GetRoleByIdAsync(role.RoleId);
-            if (roleDetails != null)
-            {
-                foreach (var pId in roleDetails.PermissionIds)
-                {
-                    selectedPermissionIds.Add(pId);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            modalError = "Failed to load role permissions.";
-            Console.WriteLine(ex);
-        }
-        finally
-        {
-            isPermissionsLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private void ClosePermissionsModal()
-    {
-        showPermissionsModal = false;
     }
 
     private void TogglePermission(int permissionId, object? checkedValue)
@@ -558,40 +544,41 @@
         }
     }
 
-    private async Task SavePermissions()
+    private static string GetFriendlyPermissionError(string? error)
     {
-        isSaving = true;
-        modalError = null;
+        if (string.IsNullOrWhiteSpace(error)) return "An error occurred while saving permissions.";
+        if (error.StartsWith("PermissionDenied")) return "You do not have permission to modify this role's permissions.";
+        if (error.StartsWith("ProtectedRole")) return "This role's permissions are protected and cannot be modified.";
+        if (error.StartsWith("PrivilegeEscalation")) return "You cannot assign permissions you do not possess yourself.";
+        if (error.Contains("prevent lockout")) return "Permissions for the System Administrator role are read-only to protect the system.";
+        if (error.StartsWith("RoleNotFound")) return "This role no longer exists.";
+        return error;
+    }
 
-        try
+    private static string GetFriendlyRoleError(string? error)
+    {
+        if (string.IsNullOrWhiteSpace(error)) return "An error occurred while saving the role.";
+        if (error.StartsWith("ProtectedRole")) return "This role is protected and cannot be modified.";
+        if (error.StartsWith("CannotCreateSuperAdminRole")) return "The System Administrator role name is reserved.";
+        if (error.StartsWith("PrivilegeEscalation")) return "You cannot assign permissions you do not possess yourself.";
+        if (error.StartsWith("RoleAlreadyExists")) return "A role with this name already exists.";
+        if (error.StartsWith("RoleNotFound")) return "This role no longer exists.";
+        return StripErrorCodePrefix(error);
+    }
+
+    private static string StripErrorCodePrefix(string error)
+    {
+        var idx = error.IndexOf(':');
+        if (idx > 0 && error[..idx].All(char.IsLetterOrDigit))
         {
-            var request = new AssignPermissionsRequest { PermissionIds = selectedPermissionIds.ToList() };
-            var result = await RoleApi.AssignPermissionsAsync(selectedRoleId, request);
-            
-            if (result.Success)
-            {
-                showPermissionsModal = false;
-            }
-            else
-            {
-                modalError = result.Error;
-            }
+            return error[(idx + 1)..].Trim();
         }
-        finally
-        {
-            isSaving = false;
-        }
+        return error;
     }
 
     private string GetFriendlyRoleName(string roleName)
     {
-        return roleName switch
-        {
-            "SuperAdmin" => "System Administrator",
-            "Admin" => "Administrator",
-            "Student" => "Student",
-            _ => roleName
-        };
+        return roleName;
     }
 
     public void Dispose()

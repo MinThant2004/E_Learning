@@ -1,0 +1,360 @@
+@page "/course-exams/attempts/{attemptId:int}/result"
+@using ELearningManagementSystem.App.Services
+@using ELearningManagementSystem.App.Components.UI
+@using ELearningManagementSystem.Application.Features.ExamEngine.DTOs
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ExamEngineApiClient EngineApiClient
+@inject NavigationManager NavManager
+
+<PageTitle>@(ResultData != null ? $"Results: {ResultData.ExamTitle}" : "Exam Results") - EduSphere</PageTitle>
+
+<div class="bg-slate-50 min-h-screen py-8 text-slate-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
+
+        @if (IsLoading)
+        {
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center space-y-3 shadow-2xs">
+                <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs font-semibold text-slate-500">Loading your exam result...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <EmptyState Title="Unable to Load Exam Results" Description="@ErrorMessage">
+                <ActionTemplate>
+                    <button @onclick='() => NavManager.NavigateTo("/course-exams")'
+                            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs focus:ring-2 focus:ring-indigo-500/20">
+                        Back to Course Exams
+                    </button>
+                </ActionTemplate>
+            </EmptyState>
+        }
+        else if (ResultData != null)
+        {
+            <!-- 2. Result Summary Top Header Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 sm:p-8 space-y-4 transition-all">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">@ResultData.CourseTitle</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border @(ResultData.Passed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200")">
+                                @(ResultData.Passed ? "Exam Passed" : "Exam Not Passed")
+                            </span>
+                        </div>
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">
+                            @ResultData.ExamTitle
+                        </h1>
+                    </div>
+
+                    <!-- Top Action Buttons with Premium Hover & Active States -->
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                                class="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer">
+                            Back to Course Exams
+                        </button>
+                        @if (ResultData.Passed)
+                        {
+                            <button type="button" @onclick='() => NavManager.NavigateTo($"/certificates/{AttemptId}")'
+                                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs transition-all shadow-2xs cursor-pointer focus:ring-2 focus:ring-indigo-500/20 flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                </svg>
+                                <span>View Certificate</span>
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs transition-all shadow-2xs cursor-pointer focus:ring-2 focus:ring-indigo-500/20">
+                                Retake Exam
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Friendly Supporting Message -->
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed pt-2 border-t border-slate-100">
+                    @(ResultData.Passed
+                        ? "Congratulations! You passed the exam. Click 'View Certificate' above to view and download your official certificate of achievement."
+                        : $"You scored {ResultData.Score:N0}%. A minimum score of {ResultData.PassingScore}% is required to pass. Review your answers and try again when you're ready.")
+                </p>
+            </div>
+
+            <!-- 3. Separate Metric Cards Grid with Clean Hover Feedback -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Card 1: Score & Pass Mark -->
+                <div class="bg-white border border-slate-200 hover:border-slate-300 transition-all rounded-2xl p-4 shadow-2xs space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Score & Pass Mark</span>
+                        <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-extrabold text-slate-900">
+                            @ResultData.Score.ToString("N0")%
+                        </div>
+                        <span class="text-xs text-slate-500 block">Required @ResultData.PassingScore%</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Correct Answers -->
+                <div class="bg-white border border-slate-200 hover:border-slate-300 transition-all rounded-2xl p-4 shadow-2xs space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Correct Answers</span>
+                        <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-extrabold text-slate-900">
+                            @ResultData.CorrectAnswersCount of @ResultData.TotalQuestions
+                        </div>
+                        <span class="text-xs text-slate-500 block">Questions</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Time Duration -->
+                <div class="bg-white border border-slate-200 hover:border-slate-300 transition-all rounded-2xl p-4 shadow-2xs space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Time Duration</span>
+                        <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-extrabold text-slate-900">
+                            @TimeSpentLabel
+                        </div>
+                        <span class="text-xs text-slate-500 block">Total Time Elapsed</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Exam Status -->
+                <div class="bg-white border border-slate-200 hover:border-slate-300 transition-all rounded-2xl p-4 shadow-2xs space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Status</span>
+                        <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="pt-0.5">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border @(ResultData.Passed ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200")">
+                                <span>@(ResultData.Passed ? "✓ Exam Passed" : "✕ Exam Not Passed")</span>
+                            </span>
+                        </div>
+                        <span class="text-[11px] text-slate-500 block mt-1">Submitted @ResultData.SubmittedAt.ToString("dd MMM yyyy")</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 6. Question Review Header & Segmented Filter Bar -->
+            <div class="space-y-4 pt-2">
+                
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                    <div>
+                        <h2 class="text-base font-extrabold text-slate-900">Review Your Answers</h2>
+                        <p class="text-xs text-slate-500">Review your answers and learn from the questions you missed.</p>
+                    </div>
+
+                    <!-- Filter Pills with Smooth Hover & Active Transitions -->
+                    <div class="bg-slate-100 p-1 rounded-xl inline-flex items-center gap-1 text-xs font-bold">
+                        <button type="button" @onclick='() => ActiveFilter = "All"'
+                                class="px-3.5 py-1.5 rounded-lg transition-all cursor-pointer @(ActiveFilter == "All" ? "bg-white text-slate-900 shadow-2xs font-extrabold" : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/60")">
+                            All (@ResultData.QuestionsBreakdown.Count)
+                        </button>
+                        <button type="button" @onclick='() => ActiveFilter = "Correct"'
+                                class="px-3.5 py-1.5 rounded-lg transition-all cursor-pointer @(ActiveFilter == "Correct" ? "bg-white text-emerald-700 shadow-2xs font-extrabold" : "text-slate-500 hover:text-emerald-700 hover:bg-emerald-50/60")">
+                            Correct (@ResultData.CorrectAnswersCount)
+                        </button>
+                        <button type="button" @onclick='() => ActiveFilter = "Incorrect"'
+                                class="px-3.5 py-1.5 rounded-lg transition-all cursor-pointer @(ActiveFilter == "Incorrect" ? "bg-white text-rose-700 shadow-2xs font-extrabold" : "text-slate-500 hover:text-rose-700 hover:bg-rose-50/60")">
+                            Incorrect (@(ResultData.TotalQuestions - ResultData.CorrectAnswersCount))
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 7 & 8. Question Cards -->
+                @foreach (var q in FilteredQuestions)
+                {
+                    <div class="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition-all p-5 sm:p-6 space-y-4 shadow-2xs">
+                        
+                        <!-- Question Card Header -->
+                        <div class="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+                            <div class="flex items-start gap-3">
+                                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    @q.QuestionOrder
+                                </span>
+                                <div>
+                                    <h3 class="text-sm sm:text-base font-semibold text-slate-900 leading-relaxed">@q.QuestionText</h3>
+                                </div>
+                            </div>
+
+                            <!-- Subtle Status Badge -->
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold border flex-shrink-0 flex items-center gap-1 @(q.IsCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200")">
+                                @if (q.IsCorrect)
+                                {
+                                    <span>✓ Correct</span>
+                                }
+                                else
+                                {
+                                    <span>✕ Incorrect</span>
+                                }
+                            </span>
+                        </div>
+
+                        <!-- 9. Answer Options -->
+                        <div class="space-y-2">
+                            @foreach (var opt in q.Options)
+                            {
+                                var isUserSelected = q.SelectedOptionId == opt.OptionId;
+                                var isCorrectOption = q.CorrectOptionId == opt.OptionId;
+
+                                string containerStyle = "bg-slate-50/70 border-slate-200 text-slate-700 hover:border-slate-300";
+                                string badgeText = "";
+                                string badgeStyle = "";
+
+                                if (isUserSelected && isCorrectOption)
+                                {
+                                    containerStyle = "bg-emerald-50/80 border-emerald-300 text-emerald-950 font-medium";
+                                    badgeText = "Your Answer & Correct Answer";
+                                    badgeStyle = "bg-emerald-100 text-emerald-800 border border-emerald-300";
+                                }
+                                else if (isCorrectOption)
+                                {
+                                    containerStyle = "bg-emerald-50/60 border-emerald-300 text-emerald-950 font-medium";
+                                    badgeText = "Correct Answer";
+                                    badgeStyle = "bg-emerald-100 text-emerald-800 border border-emerald-300";
+                                }
+                                else if (isUserSelected && !q.IsCorrect)
+                                {
+                                    containerStyle = "bg-rose-50/60 border-rose-300 text-rose-950 font-medium";
+                                    badgeText = "Your Answer";
+                                    badgeStyle = "bg-rose-100 text-rose-800 border border-rose-300";
+                                }
+
+                                <div class="rounded-xl px-4 py-3 border flex items-center justify-between gap-3 text-xs sm:text-sm transition-all @containerStyle">
+                                    <span class="leading-relaxed">@opt.OptionText</span>
+                                    
+                                    @if (!string.IsNullOrEmpty(badgeText))
+                                    {
+                                        <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0 @badgeStyle">
+                                            @badgeText
+                                        </span>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Unanswered Message -->
+                            @if (!q.SelectedOptionId.HasValue)
+                            {
+                                <div class="mt-2 text-xs font-bold text-amber-800 bg-amber-50/80 p-3 rounded-xl border border-amber-200 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <span>You did not select an answer for this question.</span>
+                                </div>
+                            }
+                        </div>
+
+                    </div>
+                }
+
+                @if (!FilteredQuestions.Any())
+                {
+                    <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs font-semibold text-slate-500">
+                        No questions match the selected filter tab.
+                    </div>
+                }
+            </div>
+
+            <!-- 13. Bottom Action Buttons -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-3 shadow-2xs">
+                <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                        class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer">
+                    Back to Course Exams
+                </button>
+
+                @if (ResultData.Passed)
+                {
+                    <button type="button" @onclick='() => NavManager.NavigateTo($"/certificates/{AttemptId}")'
+                            class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs shadow-2xs transition-all cursor-pointer focus:ring-2 focus:ring-indigo-500/20 flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                        <span>View Certificate</span>
+                    </button>
+                }
+                @if (!ResultData.Passed)
+                {
+                    <button type="button" @onclick='() => NavManager.NavigateTo("/course-exams")'
+                            class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-xl text-xs shadow-2xs transition-all cursor-pointer focus:ring-2 focus:ring-indigo-500/20">
+                        Retake Exam
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int AttemptId { get; set; }
+
+    private ExamResultResponse? ResultData;
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+    private string ActiveFilter = "All";
+
+    private IEnumerable<ExamResultQuestionBreakdownDto> FilteredQuestions
+    {
+        get
+        {
+            if (ResultData == null) return Enumerable.Empty<ExamResultQuestionBreakdownDto>();
+            return ActiveFilter switch
+            {
+                "Correct" => ResultData.QuestionsBreakdown.Where(q => q.IsCorrect),
+                "Incorrect" => ResultData.QuestionsBreakdown.Where(q => !q.IsCorrect),
+                _ => ResultData.QuestionsBreakdown
+            };
+        }
+    }
+
+    private string TimeSpentLabel
+    {
+        get
+        {
+            if (ResultData == null) return "--";
+            var d = ResultData.SubmittedAt - ResultData.StartedAt;
+            return $"{(d.Hours > 0 ? d.Hours + "h " : "")}{d.Minutes}m {d.Seconds}s";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            ResultData = await EngineApiClient.GetAttemptResultAsync(AttemptId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

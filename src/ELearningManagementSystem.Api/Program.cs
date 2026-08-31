@@ -81,7 +81,7 @@ builder.Services.AddMemoryCache();
 // Add layer services
 builder.Services.AddApplication();
 builder.Services.AddDatabase(builder.Configuration);
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -123,6 +123,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.Services.EnsurePhase23TablesCreated();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

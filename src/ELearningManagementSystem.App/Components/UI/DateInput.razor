@@ -1,0 +1,286 @@
+@namespace ELearningManagementSystem.App.Components.UI
+@using System.Globalization
+
+<div class="relative @(WrapperClass)" @onkeydown="OnKeyDown">
+    <div class="relative flex items-center">
+        <input type="text"
+               value="@_displayText"
+               placeholder="@Placeholder"
+               aria-label="@AriaLabel"
+               aria-invalid="@(_isInvalid ? "true" : "false")"
+               @oninput="HandleInput"
+               @onblur="HandleBlur"
+               class="@GetInputClasses()" />
+        <button type="button"
+                @onclick="ToggleCalendar"
+                aria-label="Open calendar"
+                aria-expanded="@(_isOpen ? "true" : "false")"
+                class="absolute right-2 p-0.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="@GetIconClasses()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        </button>
+    </div>
+
+    @if (_isOpen)
+    {
+        <div class="fixed inset-0 z-30" @onclick="Close" aria-hidden="true"></div>
+
+        <div role="dialog" aria-label="Choose date" class="absolute z-40 top-full mt-1 left-0 w-72 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200 p-3 select-none">
+            <div class="flex items-center justify-between mb-2">
+                <button type="button" @onclick='() => ShiftMonth(-1)' aria-label="Previous month"
+                        class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <span class="text-sm font-bold text-slate-800">@(new DateTime(_viewYear, _viewMonth, 1).ToString("MMMM yyyy", CultureInfo.InvariantCulture))</span>
+                <button type="button" @onclick='() => ShiftMonth(1)' aria-label="Next month"
+                        class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-7 gap-y-0.5 mb-1">
+                @foreach (var dayLabel in WeekdayLabels)
+                {
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 text-center py-1">@dayLabel</span>
+                }
+            </div>
+
+            <div class="grid grid-cols-7 gap-y-0.5">
+                @foreach (var blank in Enumerable.Range(1, _leadingBlanks))
+                {
+                    <span></span>
+                }
+                @foreach (var day in Enumerable.Range(1, _daysInMonth))
+                {
+                    var date = new DateTime(_viewYear, _viewMonth, day);
+                    var isDisabled = IsOutsideRange(date);
+                    var isSelected = Date.HasValue && Date.Value.Date == date;
+                    var isToday = date == DateTime.Today;
+
+                    <button type="button"
+                            @key="@date"
+                            @onclick='() => SelectDay(date)'
+                            disabled="@isDisabled"
+                            aria-label="@date.ToString("dd MMMM yyyy", CultureInfo.InvariantCulture)"
+                            aria-pressed="@(isSelected ? "true" : "false")"
+                            class="@GetDayClasses(isSelected, isToday, isDisabled)">
+                        @day
+                    </button>
+                }
+            </div>
+
+            <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" @onclick="SelectToday"
+                        class="px-2.5 py-1 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                    Today
+                </button>
+                <span class="text-[10px] font-semibold text-slate-400">dd-mm-yyyy</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? Date { get; set; }
+    [Parameter] public EventCallback<DateTime?> DateChanged { get; set; }
+    [Parameter] public DateInputSize Size { get; set; } = DateInputSize.Md;
+    [Parameter] public DateTime? Min { get; set; }
+    [Parameter] public DateTime? Max { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "dd-mm-yyyy";
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string WrapperClass { get; set; } = string.Empty;
+
+    private const string DateFormat = "dd-MM-yyyy";
+    private static readonly string[] WeekdayLabels = { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" };
+
+    private bool _isOpen;
+    private bool _isInvalid;
+    private bool _editing;
+    private string _displayText = string.Empty;
+    private int _viewYear;
+    private int _viewMonth;
+    private int _daysInMonth = 31;
+    private int _leadingBlanks;
+
+    protected override void OnInitialized()
+    {
+        RefreshDisplayText();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_editing)
+        {
+            RefreshDisplayText();
+        }
+    }
+
+    private void RefreshDisplayText()
+    {
+        _displayText = Date?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? string.Empty;
+        _isInvalid = false;
+    }
+
+    private string GetInputClasses()
+    {
+        var baseClasses = Size switch
+        {
+            DateInputSize.Sm => "w-32 rounded-lg px-2.5 py-1.5 pr-7 text-xs font-semibold",
+            _ => "block w-full rounded-xl px-4 py-2.5 pr-9 text-sm shadow-sm"
+        };
+
+        var stateClasses = _isInvalid
+            ? "border-red-400 text-red-700 focus:border-red-500 focus:ring-red-500/20"
+            : "border-slate-300 text-slate-700 focus:border-indigo-500 focus:ring-indigo-500";
+
+        return $"{baseClasses} border bg-white transition-colors focus:outline-none focus:ring-2 {stateClasses}";
+    }
+
+    private string GetIconClasses() => Size == DateInputSize.Sm ? "w-3.5 h-3.5" : "w-4 h-4 pointer-events-none";
+
+    private string GetDayClasses(bool isSelected, bool isToday, bool isDisabled)
+    {
+        if (isSelected)
+        {
+            return "h-8 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
+        }
+
+        if (isDisabled)
+        {
+            return "h-8 rounded-lg text-xs font-semibold text-slate-300 cursor-not-allowed";
+        }
+
+        var todayRing = isToday ? " ring-1 ring-indigo-400 text-indigo-700" : " text-slate-600";
+        return $"h-8 rounded-lg text-xs font-semibold{todayRing} hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        _editing = true;
+        _displayText = e.Value?.ToString() ?? string.Empty;
+        var trimmed = _displayText.Trim();
+
+        if (trimmed.Length == 0)
+        {
+            _isInvalid = false;
+            await CommitDateAsync(null);
+            return;
+        }
+
+        if (DateTime.TryParseExact(trimmed, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            var dateOnly = parsed.Date;
+            if (IsOutsideRange(dateOnly))
+            {
+                _isInvalid = true;
+            }
+            else
+            {
+                _isInvalid = false;
+                await CommitDateAsync(dateOnly);
+            }
+        }
+        else
+        {
+            _isInvalid = true;
+        }
+    }
+
+    private async Task HandleBlur(FocusEventArgs e)
+    {
+        if (!_isInvalid)
+        {
+            _editing = false;
+            RefreshDisplayText();
+            return;
+        }
+
+        // Revert invalid typed text back to the committed value
+        _editing = false;
+        _isInvalid = false;
+        _displayText = Date?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? string.Empty;
+        await Task.CompletedTask;
+    }
+
+    private async Task CommitDateAsync(DateTime? value)
+    {
+        if (Date != value || (!Date.HasValue && value.HasValue))
+        {
+            Date = value;
+            await DateChanged.InvokeAsync(value);
+        }
+    }
+
+    private void ToggleCalendar()
+    {
+        if (_isOpen)
+        {
+            _isOpen = false;
+            return;
+        }
+
+        var anchor = Date ?? DateTime.Today;
+        _viewYear = anchor.Year;
+        _viewMonth = anchor.Month;
+        RecalculateGrid();
+        _isOpen = true;
+    }
+
+    private void Close()
+    {
+        _isOpen = false;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _isOpen)
+        {
+            _isOpen = false;
+        }
+    }
+
+    private void ShiftMonth(int delta)
+    {
+        var current = new DateTime(_viewYear, _viewMonth, 1);
+        var next = current.AddMonths(delta);
+        _viewYear = next.Year;
+        _viewMonth = next.Month;
+        RecalculateGrid();
+    }
+
+    private void RecalculateGrid()
+    {
+        _daysInMonth = DateTime.DaysInMonth(_viewYear, _viewMonth);
+        var firstDay = new DateTime(_viewYear, _viewMonth, 1);
+        _leadingBlanks = ((int)firstDay.DayOfWeek + 6) % 7; // Monday-first grid
+    }
+
+    private async Task SelectDay(DateTime date)
+    {
+        if (IsOutsideRange(date))
+        {
+            return;
+        }
+
+        _editing = false;
+        _isOpen = false;
+        _isInvalid = false;
+        await CommitDateAsync(date.Date);
+    }
+
+    private async Task SelectToday()
+    {
+        await SelectDay(DateTime.Today);
+    }
+
+    private bool IsOutsideRange(DateTime date)
+    {
+        var d = date.Date;
+        return (Min.HasValue && d < Min.Value.Date) || (Max.HasValue && d > Max.Value.Date);
+    }
+}

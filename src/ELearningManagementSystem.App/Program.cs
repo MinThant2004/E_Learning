@@ -1,4 +1,5 @@
 using Blazored.LocalStorage;
+using Blazored.SessionStorage;
 using ELearningManagementSystem.App;
 using ELearningManagementSystem.App.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,8 +11,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Add Blazored LocalStorage
+// Add Blazored Storage
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddBlazoredSessionStorage();
+builder.Services.AddScoped<TokenStorageService>();
 
 // Add Authentication State
 builder.Services.AddAuthorizationCore();
@@ -31,9 +34,15 @@ builder.Services.AddScoped<EnrollmentApiClient>();
 builder.Services.AddScoped<LessonProgressApiClient>();
 builder.Services.AddScoped<QuizApiClient>();
 builder.Services.AddScoped<QuizAttemptApiClient>();
+builder.Services.AddScoped<CourseExamApiClient>();
+builder.Services.AddScoped<ExamPaymentApiClient>();
+builder.Services.AddScoped<ExamEngineApiClient>();
+builder.Services.AddScoped<PaymentMethodApiClient>();
+builder.Services.AddScoped<NotificationApiClient>();
 builder.Services.AddScoped<StudentDashboardApiClient>();
 builder.Services.AddScoped<AdminDashboardApiClient>();
 builder.Services.AddScoped<AuditLogApiClient>();
+builder.Services.AddScoped<ReportsApiClient>();
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5001";
 
@@ -45,13 +54,14 @@ builder.Services.AddHttpClient("AuthApi", client =>
 builder.Services.AddScoped<AuthApiService>(sp => 
     new AuthApiService(
         sp.GetRequiredService<IHttpClientFactory>().CreateClient("AuthApi"),
-        sp.GetRequiredService<ILocalStorageService>(),
+        sp.GetRequiredService<TokenStorageService>(),
         sp.GetRequiredService<CustomAuthStateProvider>()
     ));
 
 builder.Services.AddScoped<UserApiClient>();
 builder.Services.AddScoped<RoleApiClient>();
 builder.Services.AddScoped<PermissionApiClient>();
+builder.Services.AddScoped<AccountApiClient>();
 
 builder.Services.AddHttpClient("ELearningApi", client =>
 {
