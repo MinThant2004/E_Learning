@@ -19,13 +19,13 @@
         {
             NavManager.NavigateTo("/admin/reports/course-performance", replace: true);
         }
-        else if (user.HasClaim("permission", "QuizPerformance.Read"))
-        {
-            NavManager.NavigateTo("/admin/reports/quiz-performance", replace: true);
-        }
         else if (user.HasClaim("permission", "AuditLog.Read"))
         {
             NavManager.NavigateTo("/admin/reports/audit-activity", replace: true);
+        }
+        else if (user.HasClaim("permission", "Course.Update"))
+        {
+            NavManager.NavigateTo("/admin/reports/exam-performance", replace: true);
         }
         else
         {

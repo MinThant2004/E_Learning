@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,9 +19,9 @@ public class ReportService : IReportService
         _context = context;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. Enrollment Report
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public async Task<Result<PagedResult<EnrollmentReportDto>>> GetEnrollmentReportAsync(EnrollmentReportQuery query)
     {
         if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
@@ -157,9 +157,9 @@ public class ReportService : IReportService
         return Result.Success(Encoding.UTF8.GetBytes(sb.ToString()));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 2. Course Performance Report
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public async Task<Result<PagedResult<CoursePerformanceReportDto>>> GetCoursePerformanceReportAsync(CoursePerformanceReportQuery query)
     {
         if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
@@ -268,119 +268,9 @@ public class ReportService : IReportService
         return Result.Success(Encoding.UTF8.GetBytes(sb.ToString()));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 3. Quiz Performance Report
-    // ─────────────────────────────────────────────────────────────────────────────
-    public async Task<Result<PagedResult<QuizPerformanceReportDto>>> GetQuizPerformanceReportAsync(QuizPerformanceReportQuery query)
-    {
-        if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
-        {
-            return Result.Failure<PagedResult<QuizPerformanceReportDto>>("ValidationError: End Date cannot be earlier than Start Date.");
-        }
-
-        var quizzesQuery = _context.Quizzes
-            .AsNoTracking()
-            .Where(q => !q.DeleteFlag && !q.Course.DeleteFlag);
-
-        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
-        {
-            var term = query.SearchTerm.Trim().ToLower();
-            quizzesQuery = quizzesQuery.Where(q =>
-                q.Title.ToLower().Contains(term) ||
-                q.Course.Title.ToLower().Contains(term));
-        }
-
-        DateTime? start = query.StartDate?.Date;
-        DateTime? end = query.EndDate?.Date.AddDays(1).AddTicks(-1);
-
-        var projected = quizzesQuery.Select(q => new
-        {
-            q.QuizId,
-            q.Title,
-            CourseId = q.CourseId,
-            CourseTitle = q.Course != null ? q.Course.Title : "Unknown",
-            q.PassingScore,
-            FilteredAttempts = q.QuizAttempts.Where(a =>
-                (!start.HasValue || a.SubmittedAt >= start.Value) &&
-                (!end.HasValue || a.SubmittedAt <= end.Value))
-        });
-
-        var rawList = await projected.ToListAsync();
-
-        var dtoList = rawList.Select(q =>
-        {
-            var attempts = q.FilteredAttempts.ToList();
-            var totalAttempts = attempts.Count;
-            var passedCount = attempts.Count(a => a.Passed);
-            var failedCount = totalAttempts - passedCount;
-
-            var avgScore = totalAttempts > 0 ? Math.Round(attempts.Average(a => (double)a.Score), 1) : 0;
-            var passRate = totalAttempts > 0 ? Math.Round(((double)passedCount / totalAttempts) * 100, 1) : 0;
-            var failRate = totalAttempts > 0 ? Math.Round(((double)failedCount / totalAttempts) * 100, 1) : 0;
-            var highestScore = totalAttempts > 0 ? Math.Round(attempts.Max(a => (double)a.Score), 1) : 0;
-
-            return new QuizPerformanceReportDto
-            {
-                QuizId = q.QuizId,
-                QuizTitle = q.Title,
-                CourseId = q.CourseId,
-                CourseTitle = q.CourseTitle,
-                PassingScore = q.PassingScore,
-                TotalAttempts = totalAttempts,
-                PassedAttempts = passedCount,
-                FailedAttempts = failedCount,
-                AverageScore = avgScore,
-                PassRatePercentage = passRate,
-                FailRatePercentage = failRate,
-                HighestScore = highestScore
-            };
-        });
-
-        // Sorting
-        dtoList = (query.SortBy?.ToLower()) switch
-        {
-            "quiztitle" => query.SortDescending ? dtoList.OrderByDescending(q => q.QuizTitle) : dtoList.OrderBy(q => q.QuizTitle),
-            "coursetitle" => query.SortDescending ? dtoList.OrderByDescending(q => q.CourseTitle) : dtoList.OrderBy(q => q.CourseTitle),
-            "averagescore" => query.SortDescending ? dtoList.OrderByDescending(q => q.AverageScore) : dtoList.OrderBy(q => q.AverageScore),
-            "passrate" => query.SortDescending ? dtoList.OrderByDescending(q => q.PassRatePercentage) : dtoList.OrderBy(q => q.PassRatePercentage),
-            _ => query.SortDescending ? dtoList.OrderByDescending(q => q.TotalAttempts) : dtoList.OrderBy(q => q.TotalAttempts)
-        };
-
-        var totalCount = dtoList.Count();
-        var page = Math.Max(1, query.Page);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
-
-        var pagedItems = dtoList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-        var result = new PagedResult<QuizPerformanceReportDto>(pagedItems, totalCount, page, pageSize);
-
-        return Result.Success(result);
-    }
-
-    public async Task<Result<byte[]>> ExportQuizPerformanceReportCsvAsync(QuizPerformanceReportQuery query)
-    {
-        query.Page = 1;
-        query.PageSize = 5000;
-
-        var reportResult = await GetQuizPerformanceReportAsync(query);
-        if (reportResult.IsFailure || reportResult.Value == null)
-        {
-            return Result.Failure<byte[]>(reportResult.Error ?? "Failed to generate report.");
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("Quiz ID,Quiz Title,Course Title,Passing Score %,Total Attempts,Passed,Failed,Average Score %,Pass Rate %,Highest Score %");
-
-        foreach (var row in reportResult.Value.Items)
-        {
-            sb.AppendLine($"{row.QuizId},{EscapeCsv(row.QuizTitle)},{EscapeCsv(row.CourseTitle)},{row.PassingScore}%,{row.TotalAttempts},{row.PassedAttempts},{row.FailedAttempts},{row.AverageScore}%,{row.PassRatePercentage}%,{row.HighestScore}%");
-        }
-
-        return Result.Success(Encoding.UTF8.GetBytes(sb.ToString()));
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 4. Audit Activity Report
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // 3. Audit Activity Report
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public async Task<Result<PagedResult<ELearningManagementSystem.Application.Features.AuditLogs.DTOs.AuditLogResponse>>> GetAuditActivityReportAsync(AuditActivityReportQuery query)
     {
         if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
@@ -534,6 +424,269 @@ public class ReportService : IReportService
         return Result.Success(options);
     }
 
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // 4. Revenue (Exam Payment) Report
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    public async Task<Result<RevenueReportResponse>> GetRevenueReportAsync(RevenueReportQuery query)
+    {
+        if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
+        {
+            return Result.Failure<RevenueReportResponse>("ValidationError: End Date cannot be earlier than Start Date.");
+        }
+
+        DateTime? start = query.StartDate?.Date;
+        DateTime? end = query.EndDate?.Date.AddDays(1).AddTicks(-1);
+
+        var examsQuery = _context.CourseExams
+            .AsNoTracking()
+            .Where(e => !e.DeleteFlag && !e.Course.DeleteFlag);
+
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            var term = query.SearchTerm.Trim().ToLower();
+            examsQuery = examsQuery.Where(e =>
+                e.Title.ToLower().Contains(term) ||
+                e.Course.Title.ToLower().Contains(term));
+        }
+
+        var projected = examsQuery.Select(e => new
+        {
+            e.ExamId,
+            e.Title,
+            e.CourseId,
+            e.ExamFee,
+            CourseTitle = e.Course != null ? e.Course.Title : "Unknown",
+            FilteredPayments = e.ExamPayments.Where(p =>
+                !p.DeleteFlag &&
+                !p.User.DeleteFlag &&
+                (!start.HasValue || p.CreatedAt >= start.Value) &&
+                (!end.HasValue || p.CreatedAt <= end.Value))
+        });
+
+        var rawList = await projected.ToListAsync();
+
+        var dtoList = rawList.Select(e =>
+        {
+            var payments = e.FilteredPayments.ToList();
+            var totalPayments = payments.Count;
+            var approved = payments.Where(p => p.Status == "Approved").ToList();
+            var pending = payments.Where(p => p.Status == "Pending").ToList();
+            var rejected = payments.Where(p => p.Status == "Rejected").ToList();
+
+            return new RevenueReportDto
+            {
+                ExamId = e.ExamId,
+                ExamTitle = e.Title,
+                CourseId = e.CourseId,
+                CourseTitle = e.CourseTitle,
+                ExamFee = e.ExamFee,
+                TotalPayments = totalPayments,
+                ApprovedCount = approved.Count,
+                PendingCount = pending.Count,
+                RejectedCount = rejected.Count,
+                TotalAmount = payments.Sum(p => (decimal)p.Amount),
+                ApprovedRevenue = approved.Sum(p => (decimal)p.Amount),
+                PendingAmount = pending.Sum(p => (decimal)p.Amount),
+                RejectedAmount = rejected.Sum(p => (decimal)p.Amount)
+            };
+        });
+
+        // Sorting
+        dtoList = (query.SortBy?.ToLower()) switch
+        {
+            "examtitle" => query.SortDescending ? dtoList.OrderByDescending(d => d.ExamTitle) : dtoList.OrderBy(d => d.ExamTitle),
+            "coursetitle" => query.SortDescending ? dtoList.OrderByDescending(d => d.CourseTitle) : dtoList.OrderBy(d => d.CourseTitle),
+            "approvedrevenue" => query.SortDescending ? dtoList.OrderByDescending(d => d.ApprovedRevenue) : dtoList.OrderBy(d => d.ApprovedRevenue),
+            "pendingamount" => query.SortDescending ? dtoList.OrderByDescending(d => d.PendingAmount) : dtoList.OrderBy(d => d.PendingAmount),
+            "approvedcount" => query.SortDescending ? dtoList.OrderByDescending(d => d.ApprovedCount) : dtoList.OrderBy(d => d.ApprovedCount),
+            _ => query.SortDescending ? dtoList.OrderByDescending(d => d.TotalAmount) : dtoList.OrderBy(d => d.TotalAmount)
+        };
+
+        var totalCount = dtoList.Count();
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var pagedItems = dtoList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        var summary = new RevenueReportSummaryDto
+        {
+            TotalApprovedRevenue = dtoList.Sum(d => d.ApprovedRevenue),
+            TotalPendingAmount = dtoList.Sum(d => d.PendingAmount),
+            TotalAmount = dtoList.Sum(d => d.TotalAmount),
+            TotalApprovedCount = dtoList.Sum(d => d.ApprovedCount),
+            TotalPendingCount = dtoList.Sum(d => d.PendingCount)
+        };
+
+        var response = new RevenueReportResponse
+        {
+            Data = new PagedResult<RevenueReportDto>(pagedItems, totalCount, page, pageSize),
+            Summary = summary
+        };
+
+        return Result.Success(response);
+    }
+
+    public async Task<Result<byte[]>> ExportRevenueReportCsvAsync(RevenueReportQuery query)
+    {
+        query.Page = 1;
+        query.PageSize = 5000;
+
+        var reportResult = await GetRevenueReportAsync(query);
+        if (reportResult.IsFailure || reportResult.Value == null)
+        {
+            return Result.Failure<byte[]>(reportResult.Error ?? "Failed to generate report.");
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Exam Title,Course Title,Exam Fee,Total Payments,Approved,Pending,Rejected,Total Amount,Approved Revenue,Pending Amount,Rejected Amount");
+
+        foreach (var row in reportResult.Value.Data.Items)
+        {
+            sb.AppendLine($"{EscapeCsv(row.ExamTitle)},{EscapeCsv(row.CourseTitle)},{row.ExamFee:N2},{row.TotalPayments},{row.ApprovedCount},{row.PendingCount},{row.RejectedCount},{row.TotalAmount:N2},{row.ApprovedRevenue:N2},{row.PendingAmount:N2},{row.RejectedAmount:N2}");
+        }
+
+        var summary = reportResult.Value.Summary;
+        sb.AppendLine($"TOTAL,,,,,{summary.TotalApprovedCount},{summary.TotalPendingCount},,{summary.TotalApprovedRevenue:N2},{summary.TotalPendingAmount:N2},");
+
+        return Result.Success(Encoding.UTF8.GetBytes(sb.ToString()));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 5. Exam Performance Report
+    // ─────────────────────────────────────────────────────────────────────────────
+    public async Task<Result<ExamPerformanceReportResponse>> GetExamPerformanceReportAsync(ExamPerformanceReportQuery query)
+    {
+        if (query.StartDate.HasValue && query.EndDate.HasValue && query.EndDate.Value.Date < query.StartDate.Value.Date)
+        {
+            return Result.Failure<ExamPerformanceReportResponse>("ValidationError: End Date cannot be earlier than Start Date.");
+        }
+
+        DateTime? start = query.StartDate?.Date;
+        DateTime? end = query.EndDate?.Date.AddDays(1).AddTicks(-1);
+
+        var examsQuery = _context.CourseExams
+            .AsNoTracking()
+            .Where(e => !e.DeleteFlag && !e.Course.DeleteFlag);
+
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            var term = query.SearchTerm.Trim().ToLower();
+            examsQuery = examsQuery.Where(e =>
+                e.Title.ToLower().Contains(term) ||
+                e.Course.Title.ToLower().Contains(term));
+        }
+
+        var projected = examsQuery.Select(e => new
+        {
+            e.ExamId,
+            e.Title,
+            e.CourseId,
+            e.PassingScore,
+            e.MaxAttempts,
+            e.ExamFee,
+            CourseTitle = e.Course != null ? e.Course.Title : "Unknown",
+            FilteredAttempts = e.ExamAttempts.Where(a =>
+                !a.DeleteFlag &&
+                a.SubmittedAt.HasValue &&
+                (!start.HasValue || a.SubmittedAt.Value >= start.Value) &&
+                (!end.HasValue || a.SubmittedAt.Value <= end.Value))
+        });
+
+        var rawList = await projected.ToListAsync();
+
+        var dtoList = rawList.Select(e =>
+        {
+            var attempts = e.FilteredAttempts.ToList();
+            var total = attempts.Count;
+            var passed = attempts.Count(a => a.Passed == true);
+            var failed = attempts.Count(a => a.Passed == false);
+
+            var avgScore = total > 0 ? Math.Round(attempts.Where(a => a.Score.HasValue).Average(a => (double)a.Score!.Value), 1) : 0;
+            var highest = total > 0 ? Math.Round(attempts.Where(a => a.Score.HasValue).Max(a => (double)a.Score!.Value), 1) : 0;
+            var passRate = total > 0 ? Math.Round(((double)passed / total) * 100, 1) : 0;
+            var failRate = total > 0 ? Math.Round(((double)failed / total) * 100, 1) : 0;
+
+            return new ExamPerformanceReportDto
+            {
+                ExamId = e.ExamId,
+                ExamTitle = e.Title,
+                CourseId = e.CourseId,
+                CourseTitle = e.CourseTitle,
+                PassingScore = e.PassingScore,
+                MaxAttempts = e.MaxAttempts,
+                ExamFee = e.ExamFee,
+                TotalAttempts = total,
+                PassedCount = passed,
+                FailedCount = failed,
+                AverageScore = total > 0 ? avgScore : 0,
+                PassRatePercentage = passRate,
+                FailRatePercentage = failRate,
+                HighestScore = highest
+            };
+        });
+
+        // Sorting
+        dtoList = (query.SortBy?.ToLower()) switch
+        {
+            "examtitle" => query.SortDescending ? dtoList.OrderByDescending(d => d.ExamTitle) : dtoList.OrderBy(d => d.ExamTitle),
+            "coursetitle" => query.SortDescending ? dtoList.OrderByDescending(d => d.CourseTitle) : dtoList.OrderBy(d => d.CourseTitle),
+            "passrate" => query.SortDescending ? dtoList.OrderByDescending(d => d.PassRatePercentage) : dtoList.OrderBy(d => d.PassRatePercentage),
+            "averagescore" => query.SortDescending ? dtoList.OrderByDescending(d => d.AverageScore) : dtoList.OrderBy(d => d.AverageScore),
+            "passedcount" => query.SortDescending ? dtoList.OrderByDescending(d => d.PassedCount) : dtoList.OrderBy(d => d.PassedCount),
+            _ => query.SortDescending ? dtoList.OrderByDescending(d => d.TotalAttempts) : dtoList.OrderBy(d => d.TotalAttempts)
+        };
+
+        var totalCount = dtoList.Count();
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var pagedItems = dtoList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        var summary = new ExamPerformanceReportSummaryDto
+        {
+            TotalAttempts = dtoList.Sum(d => d.TotalAttempts),
+            PassedCount = dtoList.Sum(d => d.PassedCount),
+            FailedCount = dtoList.Sum(d => d.FailedCount),
+            AverageScore = dtoList.Sum(d => d.TotalAttempts) > 0
+                ? Math.Round(dtoList.Sum(d => d.AverageScore * d.TotalAttempts) / dtoList.Sum(d => d.TotalAttempts), 1)
+                : 0,
+            PassRatePercentage = dtoList.Sum(d => d.TotalAttempts) > 0
+                ? Math.Round(((double)dtoList.Sum(d => d.PassedCount) / dtoList.Sum(d => d.TotalAttempts)) * 100, 1)
+                : 0
+        };
+
+        var response = new ExamPerformanceReportResponse
+        {
+            Data = new PagedResult<ExamPerformanceReportDto>(pagedItems, totalCount, page, pageSize),
+            Summary = summary
+        };
+
+        return Result.Success(response);
+    }
+
+    public async Task<Result<byte[]>> ExportExamPerformanceReportCsvAsync(ExamPerformanceReportQuery query)
+    {
+        query.Page = 1;
+        query.PageSize = 5000;
+
+        var reportResult = await GetExamPerformanceReportAsync(query);
+        if (reportResult.IsFailure || reportResult.Value == null)
+        {
+            return Result.Failure<byte[]>(reportResult.Error ?? "Failed to generate report.");
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Exam Title,Course Title,Passing Score,Max Attempts,Exam Fee,Total Attempts,Passed,Failed,Average Score %,Pass Rate %,Fail Rate %,Highest Score %");
+
+        foreach (var row in reportResult.Value.Data.Items)
+        {
+            sb.AppendLine($"{EscapeCsv(row.ExamTitle)},{EscapeCsv(row.CourseTitle)},{row.PassingScore},{row.MaxAttempts},{row.ExamFee:N2},{row.TotalAttempts},{row.PassedCount},{row.FailedCount},{row.AverageScore}%,{row.PassRatePercentage}%,{row.FailRatePercentage}%,{row.HighestScore}%");
+        }
+
+        var summary = reportResult.Value.Summary;
+        sb.AppendLine($"TOTAL,,,,,{summary.TotalAttempts},{summary.PassedCount},{summary.FailedCount},{summary.AverageScore}%,{summary.PassRatePercentage}%,,");
+
+        return Result.Success(Encoding.UTF8.GetBytes(sb.ToString()));
+    }
+
     private static string EscapeCsv(string text)
     {
         if (string.IsNullOrEmpty(text)) return "\"\"";
@@ -544,3 +697,4 @@ public class ReportService : IReportService
         return text;
     }
 }
+

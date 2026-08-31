@@ -25,16 +25,13 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.DTOs
         public double CompletionRatePercentage { get; set; }
     }
 
-    public class QuizPerformanceStatsDto
+    public class ExamPerformanceStatsDto
     {
-        public int TotalAttempts { get; set; }
-        public int PassedCount { get; set; }
-        public int FailedCount { get; set; }
-        public double AverageScore { get; set; }
-        public double PassRatePercentage { get; set; }
-        public double FailRatePercentage { get; set; }
-        public double HighestScore { get; set; }
-        public int TotalQuizzes { get; set; }
-        public string StatusHealth { get; set; } = "Good";
+        public int TotalExamAttempts { get; set; }
+        public int PassedExamAttempts { get; set; }
+        public int FailedExamAttempts { get; set; }
+        public double ExamAverageScore { get; set; }
+        public double ExamPassRate { get; set; }
+        public double ExamFailRate { get; set; }
     }
 }

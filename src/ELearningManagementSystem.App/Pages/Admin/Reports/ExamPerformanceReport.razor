@@ -1,29 +1,29 @@
-@page "/admin/reports/quiz-performance"
+@page "/admin/reports/exam-performance"
 
 @using ELearningManagementSystem.App.Services
 @using ELearningManagementSystem.App.Components.UI
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = "Permission:QuizPerformance.Read")]
+@attribute [Authorize(Policy = "Permission:Course.Update")]
 @implements IDisposable
 @inject ReportsApiClient ReportsClient
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
-<PageTitle>Quiz Performance & Efficacy Report</PageTitle>
+<PageTitle>Exam Performance Report</PageTitle>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8">
-    
+
     @* ── Header Section ────────────────────────────────────────────────── *@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
             <div class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
                 <span>Reports</span>
                 <span>/</span>
-                <span class="text-indigo-600 font-extrabold">Quiz Performance</span>
+                <span class="text-indigo-600 font-extrabold">Exam Performance</span>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Quiz Performance & Efficacy Report</h1>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Certification Exam Performance</h1>
             <p class="text-xs font-semibold text-slate-500 mt-1">
-                Student quiz attempt metrics, pass/fail rates, average scores, and quiz health evaluations.
+                Pass/fail rates, average and highest scores per certification exam.
             </p>
         </div>
 
@@ -50,7 +50,7 @@
     @* ── Global Filters & Controls Bar ──────────────────────────────────── *@
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 mb-6 space-y-3">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            
+
             @* Date Range Presets *@
             <div class="flex flex-wrap items-center gap-2">
                 <div class="inline-flex rounded-full bg-slate-100 p-1">
@@ -88,8 +88,8 @@
             </div>
 
             @* Search Box *@
-            <div class="relative w-full lg:w-64">
-                <input type="text" value="@SearchTerm" @oninput="OnSearchInput" placeholder="Search quiz or course..."
+            <div class="relative flex-1 w-full lg:w-72">
+                <input type="text" value="@SearchTerm" @oninput="OnSearchInput" placeholder="Search exam or course..."
                        class="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all" />
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -136,7 +136,30 @@
         </div>
     }
 
-    @* ── Quiz Performance Table ────────────────────────────────────────── *@
+    @* ── Summary KPI Cards ────────────────────────────────────────────────── *@
+    @if (!IsLoading && ReportData != null)
+    {
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+                <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Total Attempts</div>
+                <div class="text-2xl font-black text-slate-900">@Summary.TotalAttempts</div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+                <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Pass Rate</div>
+                <div class="text-2xl font-black text-emerald-600">@Summary.PassRatePercentage%</div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+                <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Average Score</div>
+                <div class="text-2xl font-black text-indigo-600">@Summary.AverageScore%</div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+                <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Passed / Failed</div>
+                <div class="text-2xl font-black text-slate-900"><span class="text-emerald-600">@Summary.PassedCount</span> <span class="text-slate-300">/</span> <span class="text-rose-500">@Summary.FailedCount</span></div>
+            </div>
+        </div>
+    }
+
+    @* ── Exam Performance Table ────────────────────────────────────────── *@
     @if (IsLoading)
     {
         <div class="space-y-3">
@@ -146,10 +169,10 @@
     }
     else if (ReportData == null || !ReportData.Items.Any())
     {
-        <EmptyState Title="No Quiz Data" Description="No quiz attempts match the selected date range and search criteria.">
+        <EmptyState Title="No Exam Data" Description="No exam attempts match the selected date range and filter criteria.">
             <Icon>
                 <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
             </Icon>
         </EmptyState>
@@ -162,23 +185,20 @@
                     <thead class="bg-slate-50 text-[11px] font-extrabold uppercase text-slate-500 tracking-wider">
                         <tr>
                             <th scope="col" class="px-4 py-3.5 text-left">NO.</th>
-                            <th scope="col" class="px-4 py-3.5 text-left cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("QuizTitle")'>
-                                Quiz Title @GetSortIcon("QuizTitle")
+                            <th scope="col" class="px-4 py-3.5 text-left cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("ExamTitle")'>
+                                Exam @GetSortIcon("ExamTitle")
                             </th>
-                            <th scope="col" class="px-4 py-3.5 text-left cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("CourseTitle")'>
-                                Course Title @GetSortIcon("CourseTitle")
-                            </th>
-                            <th scope="col" class="px-4 py-3.5 text-center">Passing Score</th>
                             <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("TotalAttempts")'>
-                                Total Attempts @GetSortIcon("TotalAttempts")
-                            </th>
-                            <th scope="col" class="px-4 py-3.5 text-center">Passed / Failed</th>
-                            <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("AverageScore")'>
-                                Average Score % @GetSortIcon("AverageScore")
+                                Attempts @GetSortIcon("TotalAttempts")
                             </th>
                             <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("PassRate")'>
-                                Pass Rate % @GetSortIcon("PassRate")
+                                Pass Rate @GetSortIcon("PassRate")
                             </th>
+                            <th scope="col" class="px-4 py-3.5 text-center cursor-pointer hover:text-indigo-600" @onclick='() => ToggleSort("AverageScore")'>
+                                Avg Score @GetSortIcon("AverageScore")
+                            </th>
+                            <th scope="col" class="px-4 py-3.5 text-center">Highest</th>
+                            <th scope="col" class="px-4 py-3.5 text-right">Passed / Failed</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-xs font-medium text-slate-700">
@@ -188,46 +208,30 @@
                             var rowNum = (ReportData.Page - 1) * ReportData.PageSize + row.idx + 1;
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-4 py-3 text-slate-400 font-mono">@rowNum</td>
-                                <td class="px-4 py-3 font-extrabold text-slate-900">@item.QuizTitle</td>
-                                <td class="px-4 py-3 text-slate-600 font-semibold">@item.CourseTitle</td>
-                                <td class="px-4 py-3 text-center font-mono font-bold text-slate-600">@item.PassingScore%</td>
-                                <td class="px-4 py-3 text-center font-extrabold text-indigo-700">@item.TotalAttempts</td>
-                                <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    <span class="font-bold text-emerald-600">@item.PassedAttempts</span>
-                                    <span class="text-slate-300 mx-1">/</span>
-                                    <span class="font-bold text-rose-500">@item.FailedAttempts</span>
+                                <td class="px-4 py-3">
+                                    <div class="font-extrabold text-slate-900">@item.ExamTitle</div>
+                                    <div class="text-[11px] text-slate-400">@item.CourseTitle · Pass @item.PassingScore%</div>
                                 </td>
-                                <td class="px-4 py-3 text-center font-black text-slate-800">@item.AverageScore%</td>
+                                <td class="px-4 py-3 text-center font-bold text-slate-900">@item.TotalAttempts</td>
                                 <td class="px-4 py-3 text-center">
-                                    @if (item.PassRatePercentage >= 70)
-                                    {
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            @item.PassRatePercentage% (Healthy)
-                                        </span>
-                                    }
-                                    else if (item.PassRatePercentage >= 40)
-                                    {
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200">
-                                            @item.PassRatePercentage% (Moderate)
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                            @item.PassRatePercentage% (Needs Review)
-                                        </span>
-                                    }
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black @(item.PassRatePercentage >= 60 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200")">@item.PassRatePercentage%</span>
+                                </td>
+                                <td class="px-4 py-3 text-center font-bold text-slate-800">@item.AverageScore%</td>
+                                <td class="px-4 py-3 text-center font-black text-indigo-600">@item.HighestScore%</td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <span class="text-[11px] font-black text-emerald-600">P @item.PassedCount</span>
+                                    <span class="text-slate-300 mx-0.5">|</span>
+                                    <span class="text-[11px] font-black text-rose-500">F @item.FailedCount</span>
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
-
         </div>
 
         <Pagination CurrentPage="CurrentPage" TotalPages="ReportData.TotalPages" TotalCount="ReportData.TotalCount" PageSize="ReportData.PageSize"
-                    ItemLabel="quizzes" PageChanged="ChangePage" PageSizeChanged="OnPageSizeChangedAsync" />
+                    ItemLabel="exams" PageChanged="ChangePage" PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </div>
 
@@ -249,7 +253,8 @@
     private string SortBy = "TotalAttempts";
     private bool SortDescending = true;
 
-    private PagedResult<ClientQuizPerformanceReportDto>? ReportData;
+    private PagedResult<ClientExamPerformanceReportDto>? ReportData;
+    private ClientExamPerformanceReportSummaryDto Summary = new();
     private System.Timers.Timer? _debounceTimer;
 
     protected override async Task OnInitializedAsync()
@@ -360,16 +365,17 @@
         IsLoading = true;
         ErrorMessage = null;
 
-        var res = await ReportsClient.GetQuizPerformanceReportAsync(
+        var res = await ReportsClient.GetExamPerformanceReportAsync(
             StartDate, EndDate, SearchTerm, CurrentPage, PageSize, SortBy, SortDescending);
 
-        if (res.Success)
+        if (res.Success && res.Data != null)
         {
-            ReportData = res.Data;
+            ReportData = res.Data.Data;
+            Summary = res.Data.Summary ?? new ClientExamPerformanceReportSummaryDto();
         }
         else
         {
-            ErrorMessage = res.Error ?? "Failed to load quiz performance report.";
+            ErrorMessage = res.Error ?? "Failed to load exam performance report.";
         }
 
         IsLoading = false;
@@ -383,18 +389,18 @@
 
         try
         {
-            var res = await ReportsClient.DownloadQuizPerformanceReportCsvAsync(
+            var res = await ReportsClient.DownloadExamPerformanceReportCsvAsync(
                 StartDate, EndDate, SearchTerm, SortBy, SortDescending);
 
             if (res.Success && res.FileBytes != null)
             {
                 var base64 = Convert.ToBase64String(res.FileBytes);
-                var fileName = res.FileName ?? "quiz_performance_report.csv";
+                var fileName = res.FileName ?? "exam_performance_report.csv";
                 await JS.InvokeVoidAsync("eval", $"const a = document.createElement('a'); a.href = 'data:text/csv;base64,{base64}'; a.download = '{fileName}'; document.body.appendChild(a); a.click(); document.body.removeChild(a);");
             }
             else
             {
-                ErrorMessage = res.Error ?? "Failed to export quiz performance report CSV.";
+                ErrorMessage = res.Error ?? "Failed to export exam performance report CSV.";
             }
         }
         catch (Exception ex)

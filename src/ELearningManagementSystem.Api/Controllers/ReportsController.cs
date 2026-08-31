@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using ELearningManagementSystem.Application.Features.Reports.DTOs;
 using ELearningManagementSystem.Application.Features.Reports.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -17,9 +17,9 @@ public class ReportsController : ControllerBase
         _reportService = reportService;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. Enrollment Report Endpoints
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet("enrollments")]
     [Authorize(Policy = "Permission:EnrollmentHistory.Read")]
     public async Task<IActionResult> GetEnrollmentReport([FromQuery] EnrollmentReportQuery query)
@@ -49,9 +49,9 @@ public class ReportsController : ControllerBase
         return File(result.Value, "text/csv", $"enrollment_report_{System.DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 2. Course Performance Report Endpoints
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet("course-performance")]
     [Authorize(Policy = "Permission:CoursePerformance.Read")]
     public async Task<IActionResult> GetCoursePerformanceReport([FromQuery] CoursePerformanceReportQuery query)
@@ -81,41 +81,9 @@ public class ReportsController : ControllerBase
         return File(result.Value, "text/csv", $"course_performance_report_{System.DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 3. Quiz Performance Report Endpoints
-    // ─────────────────────────────────────────────────────────────────────────────
-    [HttpGet("quiz-performance")]
-    [Authorize(Policy = "Permission:QuizPerformance.Read")]
-    public async Task<IActionResult> GetQuizPerformanceReport([FromQuery] QuizPerformanceReportQuery query)
-    {
-        var result = await _reportService.GetQuizPerformanceReportAsync(query);
-        if (result.IsFailure)
-        {
-            if (result.Error != null && result.Error.StartsWith("ValidationError"))
-                return BadRequest(new { Error = result.Error });
-
-            return BadRequest(new { Error = result.Error ?? "Failed to fetch quiz performance report." });
-        }
-
-        return Ok(result.Value);
-    }
-
-    [HttpGet("quiz-performance/export")]
-    [Authorize(Policy = "Permission:QuizPerformance.Read")]
-    public async Task<IActionResult> ExportQuizPerformanceReportCsv([FromQuery] QuizPerformanceReportQuery query)
-    {
-        var result = await _reportService.ExportQuizPerformanceReportCsvAsync(query);
-        if (result.IsFailure || result.Value == null)
-        {
-            return BadRequest(new { Error = result.Error ?? "Failed to export quiz performance report." });
-        }
-
-        return File(result.Value, "text/csv", $"quiz_performance_report_{System.DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 4. Audit Activity Report Endpoints
-    // ─────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // 3. Audit Activity Report Endpoints
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet("audit-activity")]
     [Authorize(Policy = "Permission:AuditLog.Read")]
     public async Task<IActionResult> GetAuditActivityReport([FromQuery] AuditActivityReportQuery query)
@@ -157,4 +125,69 @@ public class ReportsController : ControllerBase
 
         return Ok(result.Value);
     }
+
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // 4. Revenue (Exam Payment) Report Endpoints
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    [HttpGet("revenue")]
+    [Authorize(Policy = "Permission:Course.Update")]
+    public async Task<IActionResult> GetRevenueReport([FromQuery] RevenueReportQuery query)
+    {
+        var result = await _reportService.GetRevenueReportAsync(query);
+        if (result.IsFailure)
+        {
+            if (result.Error != null && result.Error.StartsWith("ValidationError"))
+                return BadRequest(new { Error = result.Error });
+
+            return BadRequest(new { Error = result.Error ?? "Failed to fetch revenue report." });
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("revenue/export")]
+    [Authorize(Policy = "Permission:Course.Update")]
+    public async Task<IActionResult> ExportRevenueReportCsv([FromQuery] RevenueReportQuery query)
+    {
+        var result = await _reportService.ExportRevenueReportCsvAsync(query);
+        if (result.IsFailure || result.Value == null)
+        {
+            return BadRequest(new { Error = result.Error ?? "Failed to export revenue report." });
+        }
+
+        return File(result.Value, "text/csv", $"revenue_report_{System.DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 5. Exam Performance Report Endpoints
+    // ─────────────────────────────────────────────────────────────────────────────
+    [HttpGet("exam-performance")]
+    [Authorize(Policy = "Permission:Course.Update")]
+    public async Task<IActionResult> GetExamPerformanceReport([FromQuery] ExamPerformanceReportQuery query)
+    {
+        var result = await _reportService.GetExamPerformanceReportAsync(query);
+        if (result.IsFailure)
+        {
+            if (result.Error != null && result.Error.StartsWith("ValidationError"))
+                return BadRequest(new { Error = result.Error });
+
+            return BadRequest(new { Error = result.Error ?? "Failed to fetch exam performance report." });
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("exam-performance/export")]
+    [Authorize(Policy = "Permission:Course.Update")]
+    public async Task<IActionResult> ExportExamPerformanceReportCsv([FromQuery] ExamPerformanceReportQuery query)
+    {
+        var result = await _reportService.ExportExamPerformanceReportCsvAsync(query);
+        if (result.IsFailure || result.Value == null)
+        {
+            return BadRequest(new { Error = result.Error ?? "Failed to export exam performance report." });
+        }
+
+        return File(result.Value, "text/csv", $"exam_performance_report_{System.DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+    }
 }
+

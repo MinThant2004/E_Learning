@@ -245,6 +245,23 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
                 });
             }
 
+            // 8. Exam Payments Metric (all-time — pending stays actionable until reviewed)
+            if (permissions.Contains("Course.Update"))
+            {
+                var payments = await _context.ExamPayments
+                    .AsNoTracking()
+                    .Where(p => !p.DeleteFlag)
+                    .ToListAsync();
+
+                response.ExamPaymentStats = new ExamPaymentStatsDto
+                {
+                    PendingCount = payments.Count(p => p.Status == "Pending"),
+                    ApprovedCount = payments.Count(p => p.Status == "Approved"),
+                    RejectedCount = payments.Count(p => p.Status == "Rejected"),
+                    TotalRevenue = payments.Where(p => p.Status == "Approved").Sum(p => p.Amount)
+                };
+            }
+
             // ── ANALYTICS 1: Enrollment Trend (uses unified filterStartDate/filterEndDate) ──
             if (permissions.Contains("Course.Read"))
             {
@@ -355,20 +372,20 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
                 }).ToList();
             }
 
-            // ── ANALYTICS 3: Quiz Performance Efficacy (date-filtered) ──────────────
-            if (permissions.Contains("Quiz.Read"))
+            // ── ANALYTICS 3: Certification Exam Performance (all-time) ─────────────
+            if (permissions.Contains("Course.Update"))
             {
-                var attempts = await _context.QuizAttempts
+                var examAttempts = await _context.CourseExamAttempts
                     .AsNoTracking()
-                    .Where(a => a.SubmittedAt >= filterStartDate && a.SubmittedAt <= filterEndDate)
+                    .Where(a => a.Status == "Submitted" && a.Score.HasValue && !a.DeleteFlag)
                     .ToListAsync();
 
-                var totalAttempts = attempts.Count;
-                var passedCount = attempts.Count(a => a.Passed);
+                var totalAttempts = examAttempts.Count;
+                var passedCount = examAttempts.Count(a => a.Passed == true);
                 var failedCount = totalAttempts - passedCount;
 
                 double avgScore = totalAttempts > 0
-                    ? Math.Round(attempts.Average(a => (double)a.Score), 1)
+                    ? Math.Round(examAttempts.Average(a => (double)(a.Score ?? 0)), 1)
                     : 0;
 
                 double passRate = totalAttempts > 0
@@ -379,23 +396,14 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.Services
                     ? Math.Round(((double)failedCount / totalAttempts) * 100, 1)
                     : 0;
 
-                double highestScore = totalAttempts > 0
-                    ? Math.Round(attempts.Max(a => (double)a.Score), 1)
-                    : 0;
-
-                var totalQuizzes = await _context.Quizzes.AsNoTracking().CountAsync(q => !q.DeleteFlag);
-
-                response.QuizPerformance = new QuizPerformanceStatsDto
+                response.ExamPerformance = new ExamPerformanceStatsDto
                 {
-                    TotalAttempts = totalAttempts,
-                    PassedCount = passedCount,
-                    FailedCount = failedCount,
-                    AverageScore = avgScore,
-                    PassRatePercentage = passRate,
-                    FailRatePercentage = failRate,
-                    HighestScore = highestScore,
-                    TotalQuizzes = totalQuizzes,
-                    StatusHealth = passRate >= 70 ? "Healthy" : passRate >= 40 ? "Moderate" : "Needs Review"
+                    TotalExamAttempts = totalAttempts,
+                    PassedExamAttempts = passedCount,
+                    FailedExamAttempts = failedCount,
+                    ExamAverageScore = avgScore,
+                    ExamPassRate = passRate,
+                    ExamFailRate = failRate
                 };
             }
 

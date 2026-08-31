@@ -42,7 +42,8 @@ namespace ELearningManagementSystem.App.Services
 
         public EnrollmentAnalyticsResponse? EnrollmentAnalytics { get; set; }
         public CourseCompletionStatsDto? CompletionStats { get; set; }
-        public QuizPerformanceStatsDto? QuizPerformance { get; set; }
+        public ExamPerformanceStatsDto? ExamPerformance { get; set; }
+        public ExamPaymentStatsDto? ExamPaymentStats { get; set; }
 
         public List<PopularCourseSummaryDto> PopularCourses { get; set; } = new();
         public List<RecentActivityItemDto> RecentActivities { get; set; } = new();
@@ -88,17 +89,14 @@ namespace ELearningManagementSystem.App.Services
         public double CompletionRatePercentage { get; set; }
     }
 
-    public class QuizPerformanceStatsDto
+    public class ExamPerformanceStatsDto
     {
-        public int TotalAttempts { get; set; }
-        public int PassedCount { get; set; }
-        public int FailedCount { get; set; }
-        public double AverageScore { get; set; }
-        public double PassRatePercentage { get; set; }
-        public double FailRatePercentage { get; set; }
-        public double HighestScore { get; set; }
-        public int TotalQuizzes { get; set; }
-        public string StatusHealth { get; set; } = "Good";
+        public int TotalExamAttempts { get; set; }
+        public int PassedExamAttempts { get; set; }
+        public int FailedExamAttempts { get; set; }
+        public double ExamAverageScore { get; set; }
+        public double ExamPassRate { get; set; }
+        public double ExamFailRate { get; set; }
     }
 
     public class PopularCourseSummaryDto
@@ -118,5 +116,13 @@ namespace ELearningManagementSystem.App.Services
         public string RelativeTime { get; set; } = string.Empty;
         public string IconType { get; set; } = "info";
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class ExamPaymentStatsDto
+    {
+        public int PendingCount { get; set; }
+        public int ApprovedCount { get; set; }
+        public int RejectedCount { get; set; }
+        public decimal TotalRevenue { get; set; }
     }
 }

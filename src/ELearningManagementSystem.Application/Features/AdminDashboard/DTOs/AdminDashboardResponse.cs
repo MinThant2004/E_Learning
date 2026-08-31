@@ -9,7 +9,8 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.DTOs
 
         public EnrollmentAnalyticsResponse? EnrollmentAnalytics { get; set; }
         public CourseCompletionStatsDto? CompletionStats { get; set; }
-        public QuizPerformanceStatsDto? QuizPerformance { get; set; }
+        public ExamPerformanceStatsDto? ExamPerformance { get; set; }
+        public ExamPaymentStatsDto? ExamPaymentStats { get; set; }
 
         public List<PopularCourseSummaryDto> PopularCourses { get; set; } = new();
         public List<RecentActivityItemDto> RecentActivities { get; set; } = new();
@@ -31,5 +32,13 @@ namespace ELearningManagementSystem.Application.Features.AdminDashboard.DTOs
         public string Description { get; set; } = string.Empty;
         public string Route { get; set; } = string.Empty;
         public string Icon { get; set; } = string.Empty;
+    }
+
+    public class ExamPaymentStatsDto
+    {
+        public int PendingCount { get; set; }
+        public int ApprovedCount { get; set; }
+        public int RejectedCount { get; set; }
+        public decimal TotalRevenue { get; set; }
     }
 }
