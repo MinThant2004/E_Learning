@@ -91,7 +91,7 @@
                                     @payment.TransactionId
                                 </td>
                                 <td class="py-3.5 px-4 text-slate-500 text-[11px]">
-                                    @payment.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                                    @payment.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm tt")
                                 </td>
                                 <td class="py-3.5 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1 @GetStatusBadgeClass(payment.Status)">
@@ -176,7 +176,7 @@
                         @if (SelectedPayment.ReviewedAt.HasValue)
                         {
                             <p class="text-[11px] font-semibold mt-1 @(isApproved ? "text-emerald-700/70" : "text-rose-700/70")">
-                                Reviewed on @SelectedPayment.ReviewedAt.Value.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                                Reviewed on @SelectedPayment.ReviewedAt.Value.ToLocalTime().ToString("dd-MM-yyyy hh:mm tt")
                             </p>
                         }
                         @if (!isApproved && !string.IsNullOrEmpty(SelectedPayment.RejectionReason))
@@ -209,7 +209,7 @@
                     </div>
                     <div>
                         <span class="text-[10px] font-bold text-slate-400 uppercase block">Submitted Date</span>
-                        <span class="font-bold text-slate-800">@SelectedPayment.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                        <span class="font-bold text-slate-800">@SelectedPayment.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm tt")</span>
                     </div>
                 </div>
 
@@ -246,7 +246,7 @@
                         }
                     </div>
                     <p class="text-[11px] font-medium text-slate-400 mt-1.5">
-                        Submitted via @SelectedPayment.PaymentMethod on @SelectedPayment.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                        Submitted via @SelectedPayment.PaymentMethod on @SelectedPayment.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy hh:mm tt")
                     </p>
                 </div>
 
