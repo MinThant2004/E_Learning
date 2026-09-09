@@ -14,4 +14,5 @@ public class CourseDetailResponse
     public int CreatedBy { get; set; }
     public string? ThumbnailUrl { get; set; }
     public bool DeleteFlag { get; set; }
+    public string? RowVersion { get; set; }
 }

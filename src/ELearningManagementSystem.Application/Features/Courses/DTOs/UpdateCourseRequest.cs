@@ -17,4 +17,7 @@ public class UpdateCourseRequest
     public string? ThumbnailUrl { get; set; }
 
     public bool RemoveThumbnail { get; set; }
+
+    /// <summary>Base64-encoded RowVersion for optimistic concurrency.</summary>
+    public string? RowVersion { get; set; }
 }

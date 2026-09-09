@@ -100,7 +100,8 @@ public class CourseService : ICourseService
             UpdatedAt = course.UpdatedAt,
             CreatedBy = course.CreatedBy,
             ThumbnailUrl = course.ThumbnailUrl,
-            DeleteFlag = course.DeleteFlag
+            DeleteFlag = course.DeleteFlag,
+            RowVersion = Convert.ToBase64String(course.RowVersion)
         };
 
         return Result.Success(response);
@@ -176,6 +177,15 @@ public class CourseService : ICourseService
         if (category == null || category.DeleteFlag)
             return Result.Failure<CourseDetailResponse>("CategoryNotFound");
 
+        // Optimistic concurrency: set OriginalValue so EF generates
+        // UPDATE ... WHERE CourseId = @id AND RowVersion = @original
+        var decodedRowVersion = RowVersionHelper.Decode(request.RowVersion);
+        if (decodedRowVersion != null)
+        {
+            _dbContext.Entry(course).Property(c => c.RowVersion)
+                .OriginalValue = decodedRowVersion;
+        }
+
         var oldTitle = course.Title;
         var oldDescription = course.Description;
         var oldCategoryId = course.CategoryId;
@@ -195,7 +205,17 @@ public class CourseService : ICourseService
             course.ThumbnailUrl = request.ThumbnailUrl;
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning(
+                "Concurrency conflict on Course {CourseId} by User {UserId}. Another user modified the record.",
+                courseId, userId);
+            return Result.Failure<CourseDetailResponse>("ConcurrencyConflict");
+        }
 
         var changes = new List<AuditLogChangeDto>();
         AddChange(changes, "Title", oldTitle, course.Title);

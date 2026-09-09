@@ -16,6 +16,7 @@ public partial class CourseExam
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool DeleteFlag { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public virtual Course Course { get; set; } = null!;
     public virtual User CreatedByNavigation { get; set; } = null!;

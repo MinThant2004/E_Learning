@@ -57,6 +57,9 @@ public class CourseApiClient
         content.Add(new StringContent(request.CategoryId.ToString()), "CategoryId");
         content.Add(new StringContent(request.RemoveThumbnail.ToString().ToLower()), "RemoveThumbnail");
 
+        if (request.RowVersion != null)
+            content.Add(new StringContent(request.RowVersion), "RowVersion");
+
         if (request.ThumbnailBytes != null)
         {
             var fileContent = new ByteArrayContent(request.ThumbnailBytes);
@@ -111,6 +114,7 @@ public class CourseDetailResponse
     public int CreatedBy { get; set; }
     public string? ThumbnailUrl { get; set; }
     public bool DeleteFlag { get; set; }
+    public string? RowVersion { get; set; }
 }
 
 public class CreateCourseRequest
@@ -132,4 +136,5 @@ public class UpdateCourseRequest
     public string? ThumbnailFileName { get; set; }
     public string? ThumbnailMimeType { get; set; }
     public bool RemoveThumbnail { get; set; }
+    public string? RowVersion { get; set; }
 }

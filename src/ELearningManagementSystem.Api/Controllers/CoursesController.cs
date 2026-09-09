@@ -115,7 +115,8 @@ public class CoursesController : ControllerBase
             Description = form.Description,
             CategoryId = form.CategoryId,
             ThumbnailUrl = hasNewThumbnail ? newThumbnailUrl : null,
-            RemoveThumbnail = form.RemoveThumbnail
+            RemoveThumbnail = form.RemoveThumbnail,
+            RowVersion = form.RowVersion
         };
 
         var result = await _courseService.UpdateAsync(id, request, cancellationToken);
@@ -244,4 +245,5 @@ public class UpdateCourseForm
 
     public IFormFile? Thumbnail { get; set; }
     public bool RemoveThumbnail { get; set; }
+    public string? RowVersion { get; set; }
 }

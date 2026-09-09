@@ -9,6 +9,7 @@ public partial class Quiz
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool DeleteFlag { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public virtual Course Course { get; set; } = null!;
     public virtual ICollection<Question> Questions { get; set; } = new List<Question>();

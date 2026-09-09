@@ -56,6 +56,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.HasKey(e => e.CategoryId).HasName("PK__Categori__19093A0BEBDAF234");
             entity.Property(e => e.CategoryName).HasMaxLength(100);
             entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.RowVersion).IsRowVersion();
         });
 
         modelBuilder.Entity<Course>(entity =>
@@ -64,6 +65,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.Property(e => e.Status).HasDefaultValue(true);
             entity.Property(e => e.ThumbnailUrl).HasMaxLength(500);
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Category).WithMany(p => p.Courses)
                 .HasForeignKey(d => d.CategoryId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -87,6 +89,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
         {
             entity.HasKey(e => e.LessonId).HasName("PK__Lessons__B084ACD0F0BA05D8");
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Course).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.CourseId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -132,6 +135,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<Question>(entity =>
         {
             entity.HasKey(e => e.QuestionId).HasName("PK__Question__0DC06FACF7BD404C");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Quiz).WithMany(p => p.Questions)
                 .HasForeignKey(d => d.QuizId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -140,6 +144,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<QuestionOption>(entity =>
         {
             entity.HasKey(e => e.OptionId).HasName("PK__Question__92C7A1FF784A1790");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Question).WithMany(p => p.QuestionOptions)
                 .HasForeignKey(d => d.QuestionId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -149,6 +154,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
         {
             entity.HasKey(e => e.QuizId).HasName("PK__Quizzes__8B42AE8EADF40160");
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Course).WithMany(p => p.Quizzes)
                 .HasForeignKey(d => d.CourseId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -246,6 +252,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.Property(e => e.ExamFee).HasColumnType("decimal(18, 2)").IsRequired();
             entity.Property(e => e.MaxAttempts).HasDefaultValue(3);
             entity.Property(e => e.Status).HasDefaultValue(true);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Course).WithMany(p => p.CourseExams)
                 .HasForeignKey(d => d.CourseId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -259,6 +266,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
             entity.HasKey(e => e.ExamQuestionId);
             entity.Property(e => e.QuestionText).IsRequired();
             entity.Property(e => e.DifficultyLevel).HasMaxLength(50).HasDefaultValue("Medium");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Exam).WithMany(p => p.ExamQuestions)
                 .HasForeignKey(d => d.ExamId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
@@ -268,6 +276,7 @@ public partial class AppDbContext : DbContext, IAppDbContext
         {
             entity.HasKey(e => e.OptionId);
             entity.Property(e => e.OptionText).IsRequired();
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(d => d.Question).WithMany(p => p.ExamQuestionOptions)
                 .HasForeignKey(d => d.ExamQuestionId)
                 .OnDelete(DeleteBehavior.ClientSetNull);

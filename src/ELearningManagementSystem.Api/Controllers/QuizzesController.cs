@@ -71,6 +71,7 @@ public class QuizzesController : ControllerBase
         if (result.IsFailure)
         {
             if (result.Error == "QuizNotFound") return NotFound(new { Error = result.Error });
+            if (result.Error == "ConcurrencyConflict") return Conflict(new { Error = "This quiz was modified by another user. Reload the latest version and try again." });
             return BadRequest(new { Error = result.Error });
         }
         return Ok(result.Value);
@@ -134,6 +135,7 @@ public class QuizzesController : ControllerBase
         if (result.IsFailure)
         {
             if (result.Error == "QuestionNotFound") return NotFound(new { Error = result.Error });
+            if (result.Error == "ConcurrencyConflict") return Conflict(new { Error = "This question was modified by another user. Reload the latest version and try again." });
             return BadRequest(new { Error = result.Error });
         }
         return Ok(result.Value);
@@ -192,6 +194,7 @@ public class QuizzesController : ControllerBase
         if (result.IsFailure)
         {
             if (result.Error == "OptionNotFound") return NotFound(new { Error = result.Error });
+            if (result.Error == "ConcurrencyConflict") return Conflict(new { Error = "This answer option was modified by another user. Reload the latest version and try again." });
             if (result.Error == "OptionNotInQuestion") return BadRequest(new { Error = result.Error });
             if (result.Error == "QuizNotFound") return NotFound(new { Error = result.Error });
             if (result.Error == "InvalidCorrectAnswer") return BadRequest(new { Error = result.Error });

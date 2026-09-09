@@ -85,6 +85,7 @@ public class LessonsController : ControllerBase
         if (result.IsFailure)
         {
             if (result.Error == "LessonNotFound") return NotFound(new { Error = result.Error });
+            if (result.Error == "ConcurrencyConflict") return Conflict(new { Error = "This lesson was modified by another user. Reload the latest version and try again." });
             return BadRequest(new { Error = result.Error });
         }
         return Ok(result.Value);

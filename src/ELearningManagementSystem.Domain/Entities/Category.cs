@@ -8,6 +8,7 @@ public partial class Category
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool DeleteFlag { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
 }

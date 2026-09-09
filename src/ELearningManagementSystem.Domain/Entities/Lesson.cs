@@ -10,6 +10,7 @@ public partial class Lesson
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool DeleteFlag { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public virtual Course Course { get; set; } = null!;
     public virtual ICollection<LessonProgress> LessonProgresses { get; set; } = new List<LessonProgress>();

@@ -20,7 +20,46 @@
         </div>
         <div class="border-b border-slate-100 pt-3"></div>
 
-    @if (ErrorMessage != null)
+    @if (IsConcurrencyConflict)
+    {
+        <div class="rounded-xl bg-amber-50 p-5 border border-amber-200/80 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 mt-0.5">
+                        <svg class="h-6 w-6 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-900">Concurrency Conflict Detected</h3>
+                        <p class="text-xs sm:text-sm text-amber-800 mt-0.5">
+                            @(ErrorMessage ?? "This course was modified by another user. Reload the latest version and try again.")
+                        </p>
+                        <p class="text-xs text-amber-700 mt-1">
+                            Please reload the latest data to review the recent updates before reapplying your edits.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 flex items-center gap-2">
+                    <button type="button" @onclick="ReloadCourse" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300 border border-amber-300 shadow-sm transition">
+                        <svg class="w-4 h-4 text-amber-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                        Reload Latest Data
+                    </button>
+                    <button @onclick="() => IsConcurrencyConflict = false" type="button" class="inline-flex rounded-lg bg-amber-50 p-1.5 text-amber-600 hover:bg-amber-100 transition" title="Dismiss">
+                        <span class="sr-only">Dismiss</span>
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (ErrorMessage != null)
     {
         <div class="rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
             <div class="flex">
@@ -181,6 +220,8 @@
     private string Title = string.Empty;
     private string? Description;
     private int CategoryId;
+    private string? RowVersion;
+    private bool IsConcurrencyConflict = false;
 
     // Thumbnail State
     private string? ThumbnailPreviewUrl;
@@ -192,6 +233,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadCourseDataAsync();
+    }
+
+    private async Task LoadCourseDataAsync()
+    {
+        IsPageLoading = true;
+        HasLoadError = false;
         try
         {
             var courseTask = CourseClient.GetCourseAsync(CourseId);
@@ -209,6 +257,7 @@
             Description = course.Description;
             CategoryId = course.CategoryId;
             ExistingThumbnailUrl = course.ThumbnailUrl;
+            RowVersion = course.RowVersion;
 
             if (categoriesTask.Result != null)
             {
@@ -224,6 +273,18 @@
         {
             IsPageLoading = false;
         }
+    }
+
+    private async Task ReloadCourse()
+    {
+        IsConcurrencyConflict = false;
+        ErrorMessage = null;
+        ThumbnailPreviewUrl = null;
+        UploadedFileBytes = null;
+        UploadedFileName = null;
+        UploadedFileMimeType = null;
+        ShouldRemoveThumbnail = false;
+        await LoadCourseDataAsync();
     }
 
     private void OnCategoryChanged(ChangeEventArgs e)
@@ -296,17 +357,20 @@
         if (string.IsNullOrWhiteSpace(Title))
         {
             ErrorMessage = "Title is required.";
+            IsConcurrencyConflict = false;
             return;
         }
 
         if (CategoryId <= 0)
         {
             ErrorMessage = "Please select a category.";
+            IsConcurrencyConflict = false;
             return;
         }
 
         IsSaving = true;
         ErrorMessage = null;
+        IsConcurrencyConflict = false;
         try
         {
             var updateRequest = new UpdateCourseRequest
@@ -317,7 +381,8 @@
                 ThumbnailBytes = UploadedFileBytes,
                 ThumbnailFileName = UploadedFileName,
                 ThumbnailMimeType = UploadedFileMimeType,
-                RemoveThumbnail = ShouldRemoveThumbnail
+                RemoveThumbnail = ShouldRemoveThumbnail,
+                RowVersion = RowVersion
             };
 
             var response = await CourseClient.UpdateCourseAsync(CourseId, updateRequest);
@@ -325,14 +390,21 @@
             {
                 NavManager.NavigateTo("/admin/courses");
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                IsConcurrencyConflict = true;
+                ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response, "This course was modified by another user. Reload the latest version and try again.");
+            }
             else
             {
+                IsConcurrencyConflict = false;
                 ErrorMessage = await ApiResponseHelper.GetErrorMessageAsync(response);
             }
         }
         catch (Exception ex)
         {
             ErrorMessage = "Error updating course: " + ex.Message;
+            IsConcurrencyConflict = false;
         }
         finally
         {

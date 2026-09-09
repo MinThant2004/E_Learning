@@ -40,6 +40,12 @@ public static class ControllerExtensions
             return new ObjectResult(new { Error = error }) { StatusCode = 403 };
         }
 
+        // Concurrency conflict -> 409 Conflict
+        if (error == "ConcurrencyConflict")
+        {
+            return new ConflictObjectResult(new { Error = "This record was modified by another user. Reload the latest version and try again." });
+        }
+
         // NotFound -> 404 NotFound
         if (error.Contains("NotFound"))
         {

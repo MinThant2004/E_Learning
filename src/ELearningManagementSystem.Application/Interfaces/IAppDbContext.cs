@@ -1,5 +1,6 @@
 using ELearningManagementSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace ELearningManagementSystem.Application.Interfaces;
 
@@ -31,6 +32,9 @@ public interface IAppDbContext
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<User> Users { get; }
     DbSet<UserRole> UserRoles { get; }
+
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
+    EntityEntry Entry(object entity);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

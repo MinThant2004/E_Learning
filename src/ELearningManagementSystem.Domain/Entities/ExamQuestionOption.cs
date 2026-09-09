@@ -7,6 +7,7 @@ public partial class ExamQuestionOption
     public string OptionText { get; set; } = null!;
     public bool IsCorrect { get; set; }
     public bool DeleteFlag { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public virtual ExamQuestion Question { get; set; } = null!;
 }

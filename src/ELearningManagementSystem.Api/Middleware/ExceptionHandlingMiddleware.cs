@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace ELearningManagementSystem.Api.Middleware;
 
@@ -30,6 +31,21 @@ public class ExceptionHandlingMiddleware
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
+
+        if (exception is DbUpdateConcurrencyException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            var conflictResponse = new
+            {
+                Error = "Record was modified by another user. Reload the record and try again."
+            };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(conflictResponse, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            }));
+            return;
+        }
+
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
         var isDevelopment = context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
